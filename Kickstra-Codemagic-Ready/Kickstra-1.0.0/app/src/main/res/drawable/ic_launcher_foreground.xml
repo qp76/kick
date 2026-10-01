@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Increased insets so the circular logo is fully visible and not cropped by adaptive mask -->
+  <item>
+    <inset
+      android:drawable="@drawable/kickstra_logo"
+      android:insetLeft="12dp"
+      android:insetTop="12dp"
+      android:insetRight="12dp"
+      android:insetBottom="12dp" />
+  </item>
+</layer-list>

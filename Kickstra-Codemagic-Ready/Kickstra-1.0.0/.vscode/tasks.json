@@ -1,0 +1,20 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Assemble Debug (video playback fix)",
+			"type": "shell",
+			"command": "./gradlew --no-daemon -q :app:assembleDebug -x test"
+		},
+		{
+			"label": "Assemble Debug (video playback fix 2)",
+			"type": "shell",
+			"command": "./gradlew --no-daemon -q :app:assembleDebug -x test"
+		},
+		{
+			"label": "Assemble Debug (video playback fix 3)",
+			"type": "shell",
+			"command": "./gradlew --no-daemon -q :app:assembleDebug -x test"
+		}
+	]
+}

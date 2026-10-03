@@ -2,9 +2,16 @@ package com.kicklite.presentation.player.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import android.os.Build
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.platform.LocalContext
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
+import coil.request.ImageRequest
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import com.kicklite.data.local.ChatPreferences
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,7 +42,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.kicklite.R
 import com.kicklite.domain.model.ChatMessage
-import com.kicklite.data.local.AdvancedChatPreferences
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -47,8 +53,6 @@ private val MENTION_REGEX = Regex("@[A-Za-z0-9_]+")
 private val EMOTE_TOKEN = Regex("""\[emote:\d+:([^\]]*)]""")
 
 /** Quoted message for replies: Pair(username, text) or null. */
-private fun isPinned(metadata: String?): Boolean = metadata?.lowercase()?.let { "pinned" in it || "pin_message" in it || "pinned_message" in it } == true
-
 private fun parseReply(metadata: String?): Pair<String, String>? {
     if (metadata.isNullOrBlank() || !metadata.contains("original_message")) return null
     return runCatching {
@@ -65,6 +69,7 @@ private fun emoteUrl(id: String) = "https://files.kick.com/emotes/$id/fullsize"
 fun ChatSection(
     chatMessages: List<ChatMessage>,
     channelName: String,
+    pinnedMessage: ChatMessage? = null,
     modifier: Modifier = Modifier,
     onClose: (() -> Unit)? = null,
     settingsViewModel: ChatSettingsViewModel = hiltViewModel()
@@ -74,20 +79,29 @@ fun ChatSection(
     val compact by prefs.compact.collectAsStateWithLifecycle()
     val hideCommands by prefs.hideCommands.collectAsStateWithLifecycle()
     val showBadges by prefs.showBadges.collectAsStateWithLifecycle()
-    val bigEmotes by prefs.bigEmotes.collectAsStateWithLifecycle()
+    val emoteScale by prefs.emoteScale.collectAsStateWithLifecycle()
+    val animateEmotes by prefs.animateEmotes.collectAsStateWithLifecycle()
+    val performanceMode by prefs.performanceMode.collectAsStateWithLifecycle()
+    val showTimestamps by prefs.showTimestamps.collectAsStateWithLifecycle()
+    val animate = animateEmotes && !performanceMode
     val hideBots by prefs.hideBots.collectAsStateWithLifecycle()
-    val mutedUsers by settingsViewModel.advancedPrefs.mutedUsers.collectAsStateWithLifecycle()
-    val highlightWords by settingsViewModel.advancedPrefs.highlightWords.collectAsStateWithLifecycle()
-    val chatWidth by settingsViewModel.advancedPrefs.chatWidth.collectAsStateWithLifecycle()
-    val chatSide by settingsViewModel.advancedPrefs.chatSide.collectAsStateWithLifecycle()
+    val highlightWords by prefs.highlightWords.collectAsStateWithLifecycle()
+    val mutedUsers by prefs.mutedUsers.collectAsStateWithLifecycle()
+    val highlightList = remember(highlightWords) {
+        highlightWords.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+    }
+    val mutedSet = remember(mutedUsers) {
+        mutedUsers.split(",").map { it.trim().lowercase().removePrefix("@") }.filter { it.isNotEmpty() }.toSet()
+    }
+    var dismissedPinId by remember { mutableStateOf<String?>(null) }
     var showSettings by remember { mutableStateOf(false) }
 
     // Newest message first (the list is drawn with reverseLayout, so index 0 is the bottom)
-    val visible = remember(chatMessages, hideCommands, hideBots, mutedUsers) {
+    val visible = remember(chatMessages, hideCommands, hideBots, mutedSet) {
         chatMessages.asReversed().distinctBy { it.id }.filter {
             (!hideCommands || !it.content.startsWith("!")) &&
                 (!hideBots || it.sender.username.lowercase() !in KNOWN_BOTS) &&
-                (it.sender.username.lowercase() !in mutedUsers)
+                it.sender.username.lowercase() !in mutedSet
         }
     }
 
@@ -128,19 +142,7 @@ fun ChatSection(
     }
 
     if (showSettings) {
-        ChatSettingsDialog(
-            textSize = textSize, compact = compact, hideCommands = hideCommands,
-            showBadges = showBadges, bigEmotes = bigEmotes, hideBots = hideBots,
-            onHideBots = prefs::setHideBots,
-            onTextSize = prefs::setTextSize, onCompact = prefs::setCompact,
-            onHideCommands = prefs::setHideCommands, onShowBadges = prefs::setShowBadges,
-            onBigEmotes = prefs::setBigEmotes,
-            highlightWords = highlightWords, onHighlightWords = settingsViewModel.advancedPrefs::setHighlightWords,
-            chatWidth = chatWidth, onChatWidth = settingsViewModel.advancedPrefs::setChatWidth,
-            chatSide = chatSide, onChatSide = settingsViewModel.advancedPrefs::setChatSide,
-            mutedUsers = mutedUsers, onToggleMute = settingsViewModel.advancedPrefs::toggleMute,
-            onDismiss = { showSettings = false }
-        )
+        ChatSettingsDialog(prefs = prefs, onDismiss = { showSettings = false })
     }
 
     Surface(
@@ -181,6 +183,36 @@ fun ChatSection(
                 }
             }
 
+            if (pinnedMessage != null && pinnedMessage.id != dismissedPinId) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                        .padding(start = 12.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("\uD83D\uDCCC", fontSize = 14.sp)
+                    Spacer(Modifier.width(6.dp))
+                    Box(modifier = Modifier.weight(1f)) {
+                        ChatMessageItem(
+                            message = pinnedMessage,
+                            textSize = textSize,
+                            showBadges = showBadges,
+                            emoteScale = emoteScale,
+                            animate = animate
+                        )
+                    }
+                    IconButton(onClick = { dismissedPinId = pinnedMessage.id }, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Dismiss pinned message",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 if (visible.isEmpty()) {
                     Text(
@@ -202,9 +234,11 @@ fun ChatSection(
                                 message = message,
                                 textSize = textSize,
                                 showBadges = showBadges,
-                                bigEmotes = bigEmotes,
-                                highlightWords = highlightWords,
-                                onLongPressUser = { settingsViewModel.advancedPrefs.toggleMute(it) },
+                                emoteScale = emoteScale,
+                                animate = animate,
+                                showTimestamps = showTimestamps,
+                                highlight = highlightList.isNotEmpty() &&
+                                    message.content.lowercase().let { c -> highlightList.any { c.contains(it) } },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
@@ -254,58 +288,61 @@ fun ChatSection(
 }
 
 @Composable
-private fun ChatSettingsDialog(
-    textSize: Float,
-    compact: Boolean,
-    hideCommands: Boolean,
-    showBadges: Boolean,
-    bigEmotes: Boolean,
-    hideBots: Boolean,
-    highlightWords: String,
-    onHighlightWords: (String) -> Unit,
-    chatWidth: Int,
-    onChatWidth: (Int) -> Unit,
-    chatSide: String,
-    onChatSide: (String) -> Unit,
-    mutedUsers: Set<String>,
-    onToggleMute: (String) -> Unit,
-    onHideBots: (Boolean) -> Unit,
-    onTextSize: (Float) -> Unit,
-    onCompact: (Boolean) -> Unit,
-    onHideCommands: (Boolean) -> Unit,
-    onShowBadges: (Boolean) -> Unit,
-    onBigEmotes: (Boolean) -> Unit,
-    onDismiss: () -> Unit
-) {
+private fun ChatSettingsDialog(prefs: ChatPreferences, onDismiss: () -> Unit) {
+    val textSize by prefs.textSize.collectAsStateWithLifecycle()
+    val compact by prefs.compact.collectAsStateWithLifecycle()
+    val hideCommands by prefs.hideCommands.collectAsStateWithLifecycle()
+    val showBadges by prefs.showBadges.collectAsStateWithLifecycle()
+    val emoteScale by prefs.emoteScale.collectAsStateWithLifecycle()
+    val animateEmotes by prefs.animateEmotes.collectAsStateWithLifecycle()
+    val performanceMode by prefs.performanceMode.collectAsStateWithLifecycle()
+    val maxMessages by prefs.maxMessages.collectAsStateWithLifecycle()
+    val showTimestamps by prefs.showTimestamps.collectAsStateWithLifecycle()
+    val hideBots by prefs.hideBots.collectAsStateWithLifecycle()
+    val sideWidth by prefs.sideWidth.collectAsStateWithLifecycle()
+    val chatLeft by prefs.chatLeft.collectAsStateWithLifecycle()
+    val highlightWords by prefs.highlightWords.collectAsStateWithLifecycle()
+    val mutedUsers by prefs.mutedUsers.collectAsStateWithLifecycle()
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Chat settings") },
         confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
         text = {
-            Column {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Text("Text size: ${textSize.toInt()}", style = MaterialTheme.typography.labelLarge)
-                Slider(value = textSize, onValueChange = { onTextSize(it.toInt().toFloat()) }, valueRange = 11f..24f)
-                SettingSwitch("Compact messages", compact, onCompact)
-                SettingSwitch("Show badges", showBadges, onShowBadges)
-                SettingSwitch("Large emotes", bigEmotes, onBigEmotes)
-                SettingSwitch("Hide ! commands", hideCommands, onHideCommands)
-                SettingSwitch("Hide bot messages", hideBots, onHideBots)
+                Slider(value = textSize, onValueChange = { prefs.setTextSize(it.toInt().toFloat()) }, valueRange = 11f..24f)
+                SettingSwitch("Compact messages", compact, prefs::setCompact)
+                SettingSwitch("Show badges", showBadges, prefs::setShowBadges)
+                Text("Emote size: ${"%.1f".format(emoteScale)}x", style = MaterialTheme.typography.labelLarge)
+                Slider(value = emoteScale, onValueChange = { prefs.setEmoteScale(Math.round(it * 10f) / 10f) }, valueRange = 1.0f..3.2f)
+                SettingSwitch("Animated emotes", animateEmotes, prefs::setAnimateEmotes)
+                SettingSwitch("Show timestamps", showTimestamps, prefs::setShowTimestamps)
+                SettingSwitch("Hide ! commands", hideCommands, prefs::setHideCommands)
+                SettingSwitch("Hide bot messages", hideBots, prefs::setHideBots)
                 Spacer(Modifier.height(8.dp))
-                Text("Highlight words (comma separated)", style = MaterialTheme.typography.labelLarge)
-                OutlinedTextField(value = highlightWords, onValueChange = onHighlightWords, singleLine = true, placeholder = { Text("username, giveaway") })
+                Text("Performance", style = MaterialTheme.typography.titleSmall)
+                SettingSwitch("Performance mode (no animations, lighter chat)", performanceMode, prefs::setPerformanceMode)
+                Text("Messages kept in memory: ${maxMessages.toInt()}", style = MaterialTheme.typography.labelLarge)
+                Slider(value = maxMessages, onValueChange = { prefs.setMaxMessages((it / 50f).toInt() * 50f) }, valueRange = 50f..500f)
                 Spacer(Modifier.height(8.dp))
-                Text("Fullscreen chat width: ${chatWidth}dp", style = MaterialTheme.typography.labelLarge)
-                Slider(value = chatWidth.toFloat(), onValueChange = { onChatWidth(it.toInt()) }, valueRange = 240f..520f)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Chat side", modifier = Modifier.weight(1f))
-                    FilterChip(selected = chatSide == "left", onClick = { onChatSide("left") }, label = { Text("Left") })
-                    Spacer(Modifier.width(8.dp))
-                    FilterChip(selected = chatSide == "right", onClick = { onChatSide("right") }, label = { Text("Right") })
-                }
-                if (mutedUsers.isNotEmpty()) {
-                    Text("Muted: ${mutedUsers.joinToString()}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Text("Long-press a message to mute or unmute that user.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Fullscreen chat width: ${sideWidth.toInt()}", style = MaterialTheme.typography.labelLarge)
+                Slider(value = sideWidth, onValueChange = { prefs.setSideWidth(it.toInt().toFloat()) }, valueRange = 220f..440f)
+                SettingSwitch("Fullscreen chat on the left", chatLeft, prefs::setChatLeft)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = highlightWords,
+                    onValueChange = prefs::setHighlightWords,
+                    label = { Text("Highlight words (comma separated)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = mutedUsers,
+                    onValueChange = prefs::setMutedUsers,
+                    label = { Text("Muted users (comma separated)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     )
@@ -322,15 +359,13 @@ private fun SettingSwitch(label: String, checked: Boolean, onChange: (Boolean) -
     }
 }
 
-private fun badgeSymbol(type: String): String? = when (type) {
-    "broadcaster" -> "\uD83C\uDFA5"
-    "moderator" -> "\uD83D\uDEE1\uFE0F"
-    "vip" -> "\uD83D\uDC8E"
-    "og" -> "\uD83D\uDC51"
-    "founder" -> "\uD83C\uDFC6"
-    "verified" -> "\u2714\uFE0F"
-    "subscriber", "sub_gifter" -> "\u2B50"
-    else -> null
+private fun formatTime(createdAt: String): String = try {
+    val parser = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
+    parser.timeZone = java.util.TimeZone.getTimeZone("UTC")
+    val date = parser.parse(createdAt.take(19))
+    java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(date!!)
+} catch (e: Exception) {
+    ""
 }
 
 @Composable
@@ -339,9 +374,10 @@ fun ChatMessageItem(
     modifier: Modifier = Modifier,
     textSize: Float = 15f,
     showBadges: Boolean = true,
-    bigEmotes: Boolean = false,
-    highlightWords: String = "",
-    onLongPressUser: (String) -> Unit = {}
+    emoteScale: Float = 1.7f,
+    animate: Boolean = true,
+    showTimestamps: Boolean = false,
+    highlight: Boolean = false
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val nameColor = remember(message.sender.identity.color, primary) {
@@ -349,14 +385,19 @@ fun ChatMessageItem(
             .getOrDefault(primary)
     }
 
-    val (text, inline) = remember(message.id, textSize, showBadges, bigEmotes, nameColor, primary, highlightWords) {
-        buildChatText(message, nameColor, primary, showBadges, if (bigEmotes) (textSize * 2.4f).sp else (textSize * 1.7f).sp, highlightWords, primary)
+    val (text, inline) = remember(message.id, textSize, showBadges, emoteScale, animate, showTimestamps, nameColor, primary) {
+        buildChatText(
+            message, nameColor, primary, showBadges,
+            (textSize * emoteScale).sp, (textSize * 1.3f).sp, animate, showTimestamps
+        )
     }
     val reply = remember(message.id) { parseReply(message.metadata) }
-    val pinned = remember(message.id, message.metadata) { isPinned(message.metadata) }
+    val itemModifier = if (highlight) {
+        modifier.background(primary.copy(alpha = 0.18f), RoundedCornerShape(6.dp)).padding(horizontal = 4.dp)
+    } else modifier
 
     if (reply != null) {
-        Column(modifier = modifier) {
+        Column(modifier = itemModifier) {
             Text(
                 text = "\u21A9 ${reply.first}: ${reply.second}",
                 fontSize = (textSize * 0.8f).sp,
@@ -365,31 +406,13 @@ fun ChatMessageItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 8.dp, top = 2.dp)
             )
-            if (pinned) {
-                Text("📌 Pinned message", fontSize = (textSize * 0.72f).sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            }
             Text(
                 text = text,
                 inlineContent = inline,
                 fontSize = textSize.sp,
                 lineHeight = (textSize * 1.45f).sp,
                 color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.combinedClickable(onClick = {}, onLongClick = { onLongPressUser(message.sender.username) }).padding(bottom = 2.dp)
-            )
-        }
-        return
-    }
-
-    if (pinned) {
-        Column(modifier = modifier) {
-            Text("📌 Pinned message", fontSize = (textSize * 0.72f).sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Text(
-                text = text,
-                inlineContent = inline,
-                fontSize = textSize.sp,
-                lineHeight = (textSize * 1.45f).sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.combinedClickable(onClick = {}, onLongClick = { onLongPressUser(message.sender.username) }).padding(vertical = 2.dp)
+                modifier = Modifier.padding(bottom = 2.dp)
             )
         }
         return
@@ -401,7 +424,7 @@ fun ChatMessageItem(
         fontSize = textSize.sp,
         lineHeight = (textSize * 1.45f).sp,
         color = MaterialTheme.colorScheme.onSurface,
-        modifier = modifier.combinedClickable(onClick = {}, onLongClick = { onLongPressUser(message.sender.username) }).padding(vertical = 2.dp)
+        modifier = itemModifier.padding(vertical = 2.dp)
     )
 }
 
@@ -412,15 +435,29 @@ private fun buildChatText(
     mentionColor: Color,
     showBadges: Boolean,
     emoteSize: TextUnit,
-    highlightWords: String,
-    highlightColor: Color
+    badgeSize: TextUnit,
+    animate: Boolean,
+    showTimestamps: Boolean
 ): Pair<AnnotatedString, Map<String, InlineTextContent>> {
     val inline = HashMap<String, InlineTextContent>()
     val content = message.content
     val text = buildAnnotatedString {
+        if (showTimestamps) {
+            withStyle(SpanStyle(color = Color(0xFF8A968E))) { append(formatTime(message.createdAt)); append(" ") }
+        }
         if (showBadges) {
             for (b in message.sender.identity.badges) {
-                badgeSymbol(b.type)?.let { append(it); append(" ") }
+                if (!isKnownBadge(b.type)) continue
+                val key = "b_${b.type}"
+                appendInlineContent(key, "[badge]")
+                append(" ")
+                if (!inline.containsKey(key)) {
+                    inline[key] = InlineTextContent(
+                        Placeholder(badgeSize, badgeSize, PlaceholderVerticalAlign.Center)
+                    ) {
+                        KickBadgeIcon(b.type, Modifier.fillMaxSize())
+                    }
+                }
             }
         }
         withStyle(SpanStyle(color = nameColor, fontWeight = FontWeight.Bold)) { append(message.sender.username) }
@@ -436,8 +473,21 @@ private fun buildChatText(
                 inline[key] = InlineTextContent(
                     Placeholder(emoteSize, emoteSize, PlaceholderVerticalAlign.Center)
                 ) {
+                    val ctx = LocalContext.current
+                    val request = remember(id, animate) {
+                        ImageRequest.Builder(ctx)
+                            .data(emoteUrl(id))
+                            .apply {
+                                if (animate) {
+                                    decoderFactory(
+                                        if (Build.VERSION.SDK_INT >= 28) ImageDecoderDecoder.Factory() else GifDecoder.Factory()
+                                    )
+                                }
+                            }
+                            .build()
+                    }
                     AsyncImage(
-                        model = emoteUrl(id),
+                        model = request,
                         contentDescription = name,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -446,21 +496,6 @@ private fun buildChatText(
             last = m.range.last + 1
         }
         if (last < content.length) appendWithMentions(content.substring(last), mentionColor)
-    }
-    val words = highlightWords.split(",").map { it.trim() }.filter { it.length > 1 }
-    if (words.isNotEmpty()) {
-        val raw = text.text
-        val rebuilt = buildAnnotatedString {
-            var cursor = 0
-            val regex = Regex(words.joinToString("|") { Regex.escape(it) }, RegexOption.IGNORE_CASE)
-            for (m in regex.findAll(raw)) {
-                if (m.range.first > cursor) append(raw.substring(cursor, m.range.first))
-                withStyle(SpanStyle(color = highlightColor, fontWeight = FontWeight.ExtraBold)) { append(m.value) }
-                cursor = m.range.last + 1
-            }
-            if (cursor < raw.length) append(raw.substring(cursor))
-        }
-        return rebuilt to inline
     }
     return text to inline
 }

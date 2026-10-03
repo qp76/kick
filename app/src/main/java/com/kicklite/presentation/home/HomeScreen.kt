@@ -4,14 +4,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.FilterChip
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -39,6 +45,19 @@ fun HomeScreen(
     sharedDataViewModel: SharedDataViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+
+    // Category chips are built from the streams already loaded (no extra network calls)
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+    val topCategories = remember(state.streams) {
+        state.streams.groupBy { it.category.name }
+            .filterKeys { it.isNotBlank() }
+            .entries.sortedByDescending { e -> e.value.sumOf { s -> s.viewerCount } }
+            .take(12).map { it.key }
+    }
+    val shownStreams = remember(state.streams, selectedCategory) {
+        (selectedCategory?.let { c -> state.streams.filter { it.category.name == c } } ?: state.streams)
+            .distinctBy { it.channel.slug }
+    }
     
     // Pull refresh state
     val pullRefreshState = rememberPullRefreshState(
@@ -54,6 +73,50 @@ fun HomeScreen(
     // Save list state when it changes
     LaunchedEffect(listState) {
         sharedDataViewModel.saveHomeListState(listState)
+    }
+
+    // Live preview: the card resting near the middle of the screen plays a muted preview
+    val previewVm: PreviewViewModel = hiltViewModel()
+    val previewPlayer by previewVm.manager.player.collectAsState()
+    val previewsOn by previewVm.settings.previews.collectAsState()
+    val dataSaverOn by previewVm.settings.enabled.collectAsState()
+    var previewSlug by remember { mutableStateOf<String?>(null) }
+    val previewAllowed = previewsOn && !dataSaverOn
+
+    LaunchedEffect(listState, previewAllowed) {
+        if (!previewAllowed) {
+            previewSlug = null
+            return@LaunchedEffect
+        }
+        snapshotFlow { listState.isScrollInProgress }.collectLatest { scrolling ->
+            if (scrolling) {
+                previewSlug = null
+            } else {
+                delay(1500)
+                val info = listState.layoutInfo
+                val center = (info.viewportStartOffset + info.viewportEndOffset) / 2
+                previewSlug = info.visibleItemsInfo
+                    .filter { (it.key as? String)?.startsWith("stream_") == true }
+                    .filter { it.offset >= info.viewportStartOffset - 40 && it.offset + it.size <= info.viewportEndOffset + 40 }
+                    .minByOrNull { kotlin.math.abs(it.offset + it.size / 2 - center) }
+                    ?.let { (it.key as String).removePrefix("stream_") }
+            }
+        }
+    }
+    LaunchedEffect(previewSlug) {
+        val slug = previewSlug
+        if (slug != null) previewVm.manager.start(slug) else previewVm.manager.stop()
+    }
+    val lifecycleOwner = LocalContext.current as? LifecycleOwner
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) previewSlug = null
+        }
+        lifecycleOwner?.lifecycle?.addObserver(observer)
+        onDispose {
+            lifecycleOwner?.lifecycle?.removeObserver(observer)
+            previewVm.manager.stopNow()
+        }
     }
 
     // Infinite scroll logic - separate LaunchedEffect
@@ -150,36 +213,12 @@ fun HomeScreen(
                     }
                 }
                 else -> {
-                    val categoryChips = remember(state.streams) {
-                        state.streams.map { it.category.name }.filter { it.isNotBlank() }.distinct().take(12)
-                    }
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        if (categoryChips.isNotEmpty()) {
-                            item {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    FilterChip(
-                                        selected = state.selectedCategory == null,
-                                        onClick = { viewModel.selectCategory(null) },
-                                        label = { Text("All") }
-                                    )
-                                    categoryChips.forEach { category ->
-                                        FilterChip(
-                                            selected = state.selectedCategory == category,
-                                            onClick = { viewModel.selectCategory(category) },
-                                            label = { Text(category, maxLines = 1) }
-                                        )
-                                    }
-                                }
-                            }
-                        }
                         // Language filter
                         if (state.showLanguageFilter) {
                             item {
@@ -263,11 +302,24 @@ fun HomeScreen(
                             }
                         }
 
-                        items(state.streams.filter { state.selectedCategory == null || it.category.name == state.selectedCategory }) { stream ->
+                        item {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(vertical = 4.dp)
+                            ) {
+                                item { CategoryChip("All", selectedCategory == null) { selectedCategory = null } }
+                                items(topCategories) { c ->
+                                    CategoryChip(c, selectedCategory == c) { selectedCategory = c }
+                                }
+                            }
+                        }
+
+                        items(shownStreams, key = { "stream_${it.channel.slug}" }) { stream ->
                             StreamItem(
                         stream = stream,
                         onClick = { onStreamClick(stream) },
                         onChannelClick = { onChannelClick(stream.channel.username) },
+                        previewPlayer = if (stream.channel.slug == previewSlug) previewPlayer else null,
                         modifier = Modifier.fillMaxWidth()
                     )
                         }
@@ -296,5 +348,22 @@ fun HomeScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
         }
+    }
+}
+
+@Composable
+private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.clickable { onClick() }
+    ) {
+        Text(
+            text = label,
+            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+            style = MaterialTheme.typography.labelLarge,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        )
     }
 }

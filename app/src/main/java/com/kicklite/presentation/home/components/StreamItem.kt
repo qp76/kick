@@ -19,6 +19,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.kicklite.R
 import com.kicklite.domain.model.LiveStream
@@ -29,6 +33,7 @@ fun StreamItem(
     stream: LiveStream,
     onClick: () -> Unit,
     onChannelClick: (() -> Unit)? = null,
+    previewPlayer: ExoPlayer? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
@@ -55,6 +60,22 @@ fun StreamItem(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
+
+                // Live preview (muted) plays over the thumbnail for the card that rests on screen
+                if (previewPlayer != null) {
+                    AndroidView(
+                        factory = { ctx ->
+                            PlayerView(ctx).apply {
+                                useController = false
+                                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+                                player = previewPlayer
+                            }
+                        },
+                        update = { it.player = previewPlayer },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
                 // Bottom scrim so the badges stay readable on bright thumbnails
                 Box(

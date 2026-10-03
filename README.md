@@ -1,46 +1,52 @@
 # Kick Lite
 
-Kick Lite is a lightweight native Android client for Kick.com livestreams and VODs, built with Jetpack Compose, Media3 and Hilt.
-It is based on the open-source [Kickstra](https://github.com/mucahit-sahin/Kickstra) project.
+A lightweight native Android client for Kick.com livestreams (Jetpack Compose, Media3, Hilt).
+Based on the open-source [Kickstra](https://github.com/mucahit-sahin/Kickstra).
 
-## Build the APK with Codemagic
+## Features
+- Live chat over Kick's WebSocket, with real emotes (animated or still), badges, replies, @mentions and pinned messages
+- Chat that never jumps while you scroll up, plus a "back to live chat" button
+- Chat settings: text size, emote size, animated emotes, timestamps, compact mode, hide bots / `!` commands,
+  highlight words, muted users, fullscreen chat width and side, performance mode, message limit
+- Home category chips, pull to refresh, **live preview** (muted video preview of the stream resting on screen)
+- Fullscreen gestures: double-tap pause, swipe for brightness / volume, side-by-side chat
+- Data saver (caps Auto quality at 480p), mini player, picture-in-picture, background audio
 
-1. Push this folder to a GitHub / GitLab / Bitbucket repository (the repo root must contain `codemagic.yaml`).
-2. In Codemagic: **Add application** -> pick the repo -> choose the **codemagic.yaml** configuration.
-3. Start a build of the `kick-lite-apk` workflow.
-4. Download `app-release.apk` from the build artifacts.
+## Push to GitHub
+```
+git init
+git add .
+git commit -m "Kick Lite"
+git branch -M main
+git remote add origin https://github.com/<you>/<repo>.git
+git push -u origin main
+```
+`codemagic.yaml` must be at the repository root (it is).
 
-The workflow installs Gradle 8.2, creates a self-signed keystore and builds a signed release APK. Package name: `com.kicklite`.
+## Build the APK with Codemagic (free)
+1. Codemagic -> **Add application** -> pick the repo -> choose the **codemagic.yaml** configuration.
+2. Start a build of the `kick-lite-apk` workflow on branch `main`.
+3. Download `app-release.apk` from the build artifacts.
+
+No secrets or variables are required. Optional variable: `ENABLE_R8=true` builds a smaller shrunk APK.
+
+## Use Kick's original badge artwork (optional)
+Badges are drawn in code as lookalikes. To use Kick's own artwork, put files named after the badge type into
+`app/src/main/assets/badges/` (for example `moderator.svg`, `broadcaster.svg`, `vip.svg`, `og.svg`, `founder.svg`,
+`verified.svg`, `subscriber.svg`, `sub_gifter.svg`, `staff.svg`; `.png` and `.webp` also work). They are picked up
+automatically, no code change needed.
 
 ## Build locally
-
 ```
 gradle assembleRelease      # Gradle 8.2, JDK 17, Android SDK 34
 ```
 
 ## Project layout
-
 ```
 app/src/main/java/com/kicklite/
-├── data/          # DTOs, Retrofit services, repositories, local preferences
+├── data/          # DTOs, Retrofit services, repositories, chat socket, preview player, preferences
 ├── domain/        # Models, repository contracts, use cases
 ├── presentation/  # Compose screens (home, player, channel, search, following, settings)
 ├── di/            # Hilt modules
-└── ui/theme/      # Kick-Lite colors, typography, shapes
+└── ui/theme/      # Colors, typography, shapes
 ```
-
-
-## Advanced features in 1.1.0
-
-- Home category chips sourced from live stream data.
-- Chat user mute by long-press, persistent keyword highlighting, and pinned-message presentation when Kick supplies pin metadata.
-- Configurable fullscreen chat width and persistent chat preferences.
-- Data Saver mode prefers the lowest available HLS quality.
-- Real channel-video API results only; no fabricated fallback videos.
-- Kick OAuth 2.1 PKCE browser/deep-link flow scaffold.
-
-### Kick login
-
-Kick requires a registered application client ID and redirect URI. The Android client starts the official `https://id.kick.com/oauth/authorize` flow and validates the OAuth `state` on return. Kick's documented authorization-code exchange also requires a client secret, so the final token exchange must be performed by a trusted backend rather than shipping the secret inside the APK.
-
-For a production build, set `KICK_CLIENT_ID` and `KICK_REDIRECT_URI` in the build environment and register the exact redirect URI in the Kick developer application. The default Android callback is `kicklite://oauth/callback`.

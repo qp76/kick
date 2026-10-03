@@ -158,3 +158,11 @@ secrets.properties
 # Build summaries and validation scripts (project specific)
 BUILD_SUMMARY.md
 validate_project.sh
+
+# Signing / local
+*.keystore
+*.jks
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/

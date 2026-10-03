@@ -35,9 +35,6 @@ fun PlayerScreenWithStream(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
-    val chatSettingsViewModel: ChatSettingsViewModel = hiltViewModel()
-    val chatWidth by chatSettingsViewModel.advancedPrefs.chatWidth.collectAsStateWithLifecycle()
-    val chatSide by chatSettingsViewModel.advancedPrefs.chatSide.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     // Track player screen state in MainActivity
@@ -158,7 +155,22 @@ fun PlayerScreenWithStream(
                 if (state.isFullscreen) {
                     // Fullscreen mode - video, with an optional chat panel on the side (like the official app)
                     var showSideChat by remember { mutableStateOf(false) }
+                    val chatPrefs = hiltViewModel<ChatSettingsViewModel>().prefs
+                    val sideWidth by chatPrefs.sideWidth.collectAsState()
+                    val chatLeft by chatPrefs.chatLeft.collectAsState()
+                    val sideChatContent: @Composable () -> Unit = {
+                        ChatSection(
+                            chatMessages = state.chatMessages,
+                            pinnedMessage = state.pinnedMessage,
+                            channelName = state.stream?.channel?.username ?: stringResource(R.string.channel_default_name),
+                            modifier = Modifier
+                                .width(sideWidth.dp)
+                                .fillMaxHeight(),
+                            onClose = { showSideChat = false }
+                        )
+                    }
                     Row(modifier = Modifier.fillMaxSize()) {
+                    if (chatLeft && showSideChat) sideChatContent()
                     Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
                         VideoPlayer(
                             streamUrl = state.streamUrl,
@@ -248,21 +260,7 @@ fun PlayerScreenWithStream(
                             }
                         }
                     }
-                    if (showSideChat) {
-                        val chat: @Composable () -> Unit = {
-                            ChatSection(
-                                chatMessages = state.chatMessages,
-                                channelName = state.stream?.channel?.username ?: stringResource(R.string.channel_default_name),
-                                modifier = Modifier.width(chatWidth.dp).fillMaxHeight(),
-                                onClose = { showSideChat = false }
-                            )
-                        }
-                        if (chatSide == "left") {
-                            // Left-side chat is rendered before the video in the Row below; this branch is
-                            // kept for state compatibility and is handled by the alternate container.
-                        }
-                        chat()
-                    }
+                    if (!chatLeft && showSideChat) sideChatContent()
                     }
                 } else {
                     when (state.playbackMode) {
@@ -294,6 +292,8 @@ fun PlayerScreenWithStream(
 
                                 ChatSection(
                                     chatMessages = state.chatMessages,
+
+                                    pinnedMessage = state.pinnedMessage,
                                     channelName = state.stream?.channel?.username ?: stringResource(R.string.channel_default_name),
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -393,6 +393,7 @@ fun PlayerScreenWithStream(
                                 // Chat fills the rest
                                 ChatSection(
                                     chatMessages = state.chatMessages,
+                                    pinnedMessage = state.pinnedMessage,
                                     channelName = state.stream?.channel?.username ?: stringResource(R.string.channel_default_name),
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -467,6 +468,7 @@ fun PlayerScreenWithStream(
                                 ) {
                                     ChatSection(
                                         chatMessages = state.chatMessages,
+                                        pinnedMessage = state.pinnedMessage,
                                         channelName = state.stream?.channel?.username ?: stringResource(R.string.channel_default_name),
                                         modifier = Modifier.fillMaxSize(),
                                         onClose = { viewModel.setChatEnabled(false) }

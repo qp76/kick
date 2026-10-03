@@ -29,6 +29,7 @@ class KickChatSocket @Inject constructor(client: OkHttpClient) {
         object Connected : Event
         object Disconnected : Event
         data class Message(val message: ChatMessage) : Event
+        data class Pinned(val message: ChatMessage?) : Event
     }
 
     private val wsClient: OkHttpClient = client.newBuilder()
@@ -61,6 +62,11 @@ class KickChatSocket @Inject constructor(client: OkHttpClient) {
                                 name == "pusher_internal:subscription_succeeded" -> trySend(Event.Connected)
                                 name == "pusher:ping" ->
                                     webSocket.send("""{"event":"pusher:pong","data":{}}""")
+                                name.endsWith("PinnedMessageCreatedEvent") -> {
+                                    val msg = JSONObject(json.optString("data")).optJSONObject("message")
+                                    trySend(Event.Pinned(msg?.let { parseMessageObject(it) }))
+                                }
+                                name.endsWith("PinnedMessageDeletedEvent") -> trySend(Event.Pinned(null))
                                 name.endsWith("ChatMessageEvent") -> {
                                     parseMessage(json.optString("data"))?.let { trySend(Event.Message(it)) }
                                 }
@@ -90,8 +96,9 @@ class KickChatSocket @Inject constructor(client: OkHttpClient) {
         }
     }
 
-    private fun parseMessage(data: String): ChatMessage? {
-        val o = JSONObject(data)
+    private fun parseMessage(data: String): ChatMessage? = parseMessageObject(JSONObject(data))
+
+    private fun parseMessageObject(o: JSONObject): ChatMessage? {
         val id = o.optString("id")
         if (id.isEmpty()) return null
         val type = o.optString("type", "message")

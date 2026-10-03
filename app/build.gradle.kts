@@ -19,9 +19,7 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "1.1.0"
-        buildConfigField("String", "KICK_CLIENT_ID", "\"${System.getenv("KICK_CLIENT_ID") ?: ""}\"")
-        buildConfigField("String", "KICK_REDIRECT_URI", "\"${System.getenv("KICK_REDIRECT_URI") ?: "kicklite://oauth/callback"}\"")
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -121,6 +119,8 @@ dependencies {
     
     // Image loading
     implementation("io.coil-kt:coil-compose:2.5.0")
+    implementation("io.coil-kt:coil-gif:2.5.0")
+    implementation("io.coil-kt:coil-svg:2.5.0")
     
     // SwipeRefresh for pull-to-refresh
     implementation("androidx.compose.material:material:1.5.4")

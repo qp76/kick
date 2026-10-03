@@ -3,6 +3,9 @@ package com.kicklite.presentation.settings
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Switch
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,7 +22,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.Switch
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -36,12 +38,9 @@ import com.kicklite.domain.model.ThemePreference
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
-    viewModel: ThemeViewModel = hiltViewModel(),
-    appPrefsViewModel: AppPreferencesViewModel = hiltViewModel(),
-    authViewModel: AuthViewModel = hiltViewModel()
+    viewModel: ThemeViewModel = hiltViewModel()
 ) {
     val themePreference by viewModel.themePreference.collectAsState()
-    val dataSaver by appPrefsViewModel.prefs.dataSaver.collectAsState()
     val themeOptions = listOf(
         ThemePreference.AUTO,
         ThemePreference.LIGHT,
@@ -86,24 +85,6 @@ fun SettingsScreen(
                 }
             }
 
-            item {
-                ListItem(
-                    headlineContent = { Text("Kick account") },
-                    supportingContent = { Text(if (authViewModel.auth.isConfigured()) "Sign in through the official Kick authorization page." else "OAuth is ready, but this build has no Kick client ID configured.") },
-                    trailingContent = {
-                        androidx.compose.material3.Button(onClick = { authViewModel.auth.beginLogin() }, enabled = authViewModel.auth.isConfigured()) { Text("Sign in") }
-                    }
-                )
-            }
-
-            item {
-                ListItem(
-                    headlineContent = { Text("Data saver") },
-                    supportingContent = { Text("Prefer the lowest available stream quality to reduce mobile data usage.") },
-                    trailingContent = { Switch(checked = dataSaver, onCheckedChange = appPrefsViewModel.prefs::setDataSaver) }
-                )
-            }
-
             items(themeOptions) { option ->
                 val title = when (option) {
                     ThemePreference.AUTO -> stringResource(R.string.settings_theme_option_auto)
@@ -122,6 +103,38 @@ fun SettingsScreen(
                     isSelected = themePreference == option,
                     onSelected = { viewModel.updateThemePreference(option) }
                 )
+            }
+
+            item {
+                val dataSaverVm: DataSaverViewModel = hiltViewModel()
+                val dataSaver by dataSaverVm.prefs.enabled.collectAsState()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Data saver", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Limits Auto video quality to 480p to use less mobile data.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = dataSaver, onCheckedChange = { dataSaverVm.prefs.setEnabled(it) })
+                }
+            }
+
+            item {
+                val previewVm: DataSaverViewModel = hiltViewModel()
+                val previews by previewVm.prefs.previews.collectAsState()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Live previews", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Plays a muted preview on Home when a stream rests on screen. Off while Data saver is on.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = previews, onCheckedChange = { previewVm.prefs.setPreviews(it) })
+                }
             }
         }
     }

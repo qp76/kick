@@ -44,7 +44,7 @@ class PlayerManager @Inject constructor(
     val exoPlayer: ExoPlayer
         get() {
             if (_exoPlayer == null) {
-                _trackSelector = DefaultTrackSelector(context)
+                _trackSelector = DefaultTrackSelector(context).also { applyDataSaver(it) }
                 
                 // Configure load control for live streaming with reduced latency
                 val loadControl = DefaultLoadControl.Builder()
@@ -186,6 +186,19 @@ class PlayerManager @Inject constructor(
     
     fun setVolume(volume: Float) {
         exoPlayer.volume = volume
+    }
+
+    @Volatile private var dataSaver = false
+
+    fun setDataSaver(enabled: Boolean) {
+        dataSaver = enabled
+        _trackSelector?.let { applyDataSaver(it) }
+    }
+
+    private fun applyDataSaver(selector: DefaultTrackSelector) {
+        val b = selector.parameters.buildUpon()
+        if (dataSaver) b.setMaxVideoSize(854, 480) else b.setMaxVideoSize(Int.MAX_VALUE, Int.MAX_VALUE)
+        selector.setParameters(b)
     }
 
     /**

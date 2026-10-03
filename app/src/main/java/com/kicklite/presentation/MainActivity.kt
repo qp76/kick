@@ -82,8 +82,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import com.kicklite.domain.model.ThemePreference
-import com.kicklite.auth.KickAuthManager
-import android.widget.Toast
 
 @UnstableApi
 @OptIn(ExperimentalMaterial3Api::class)
@@ -99,9 +97,6 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var playbackNotificationManager: PlaybackNotificationManager
 
-    @Inject
-    lateinit var kickAuthManager: KickAuthManager
-
     
     private var isVideoPlaying = false
     private var isOnPlayerScreen = false
@@ -116,7 +111,6 @@ class MainActivity : ComponentActivity() {
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        handleAuthIntent(intent)
         // If launched from notification, we may need to open the now playing screen
     val openNowPlayingFromIntent = intent?.getBooleanExtra("open_now_playing", false) == true
         // Register runtime permission launcher for Android 13+ notifications
@@ -424,7 +418,7 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("channel_profile/$username")
                                     },
                                     onCategoryClick = { categorySlug: String ->
-                                        startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://kick.com/categories/$categorySlug")))
+                                        // TODO: Navigate to category screen when implemented
                                     }
                                 )
                             }
@@ -599,8 +593,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: android.content.Intent?) {
         super.onNewIntent(intent)
-        setIntent(intent)
-        handleAuthIntent(intent)
         if (intent?.getBooleanExtra("open_now_playing", false) == true) {
             handleNowPlayingNavigation(navController ?: return, sharedDataViewModel ?: return)
         }
@@ -978,15 +970,4 @@ class MainActivity : ComponentActivity() {
         // Notify PipModeManager
         pipModeManager.setPipMode(isInPictureInPictureMode)
     }
-    private fun handleAuthIntent(intent: android.content.Intent?) {
-        val uri = intent?.data ?: return
-        if (uri.scheme == "kicklite" && uri.host == "oauth" && uri.path == "/callback") {
-            when (val result = kickAuthManager.consumeCallback(uri)) {
-                is KickAuthManager.CallbackResult.Code -> Toast.makeText(this, "Kick authorization received. Complete the secure token exchange on the configured backend.", Toast.LENGTH_LONG).show()
-                is KickAuthManager.CallbackResult.Error -> Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
-            }
-            intent.data = null
-        }
-    }
-
 }

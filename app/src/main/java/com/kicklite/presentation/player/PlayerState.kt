@@ -11,6 +11,7 @@ data class PlayerState(
     val channelDetails: ChannelDetails? = null,
     val chatMessages: List<ChatMessage> = emptyList(),
     val isChatEnabled: Boolean = true,
+    val pinnedMessage: ChatMessage? = null,
     val error: String? = null,
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,

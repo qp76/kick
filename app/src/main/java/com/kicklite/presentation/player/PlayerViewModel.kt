@@ -17,7 +17,6 @@ import com.kicklite.domain.usecase.ToggleFollowChannelUseCase
 import com.kicklite.data.repository.StreamQualityRepository
 import com.kicklite.data.model.StreamQuality
 import com.kicklite.data.local.QualityPreferences
-import com.kicklite.data.local.AdvancedChatPreferences
 import com.kicklite.presentation.player.PlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import androidx.media3.common.util.UnstableApi
@@ -39,9 +38,10 @@ class PlayerViewModel @Inject constructor(
     private val pipModeManager: PipModeManager,
     private val streamQualityRepository: StreamQualityRepository,
     private val qualityPreferences: QualityPreferences,
-    private val advancedChatPreferences: AdvancedChatPreferences,
     private val playerManager: PlayerManager,
-    private val chatSocket: KickChatSocket
+    private val chatSocket: KickChatSocket,
+    private val dataSaverPrefs: com.kicklite.data.local.DataSaverPreferences,
+    private val chatPrefs: com.kicklite.data.local.ChatPreferences
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlayerState())
@@ -70,6 +70,11 @@ class PlayerViewModel @Inject constructor(
             _state.value = _state.value.copy(playbackMode = savedMode)
         }
         
+        // Data saver: caps Auto quality at 480p
+        viewModelScope.launch {
+            dataSaverPrefs.enabled.collect { playerManager.setDataSaver(it) }
+        }
+
         // Listen for PiP mode changes
         viewModelScope.launch {
             pipModeManager.pipModeEvents.collect { isInPip ->
@@ -198,7 +203,7 @@ class PlayerViewModel @Inject constructor(
         current.forEach { ids.add(it.id) }
         val fresh = newOnes.filter { ids.add(it.id) }
         if (fresh.isEmpty()) return
-        _state.value = _state.value.copy(chatMessages = (current + fresh).takeLast(MAX_CHAT_MESSAGES))
+        _state.value = _state.value.copy(chatMessages = (current + fresh).takeLast(chatPrefs.effectiveMaxMessages()))
     }
 
     // Live chat over WebSocket; messages are batched every 250ms so busy chats stay smooth
@@ -212,11 +217,12 @@ class PlayerViewModel @Inject constructor(
                         is KickChatSocket.Event.Connected -> socketConnected = true
                         is KickChatSocket.Event.Disconnected -> socketConnected = false
                         is KickChatSocket.Event.Message -> socketBuffer.add(ev.message)
+                        is KickChatSocket.Event.Pinned -> _state.value = _state.value.copy(pinnedMessage = ev.message)
                     }
                 }
             }
             while (true) {
-                delay(250)
+                delay(chatPrefs.batchDelayMs())
                 val batch = generateSequence { socketBuffer.poll() }.toList()
                 if (batch.isNotEmpty()) appendChatMessages(batch)
             }
@@ -228,7 +234,7 @@ class PlayerViewModel @Inject constructor(
         chatroomId = null
         isFirstChatLoad = true
         latestMessageTimestamp = null
-        _state.value = _state.value.copy(chatMessages = emptyList())
+        _state.value = _state.value.copy(chatMessages = emptyList(), pinnedMessage = null)
     }
     
     private fun loadChatHistory(channelId: Long) {
@@ -530,10 +536,7 @@ class PlayerViewModel @Inject constructor(
                 val savedQuality = qualityPreferences.getSavedQuality()
                 
                 // Try to find the saved quality in available qualities
-                val selectedQuality = if (advancedChatPreferences.dataSaver.value) {
-                    streamManifest.qualities.filter { it.id != "auto" }.minByOrNull { it.bandwidth }
-                        ?: StreamQuality.AUTO
-                } else if (savedQuality.id != "auto") {
+                val selectedQuality = if (savedQuality.id != "auto") {
                     streamManifest.qualities.find { it.id == savedQuality.id }
                         ?: streamManifest.qualities.find { it.name == savedQuality.name }
                         ?: StreamQuality.AUTO

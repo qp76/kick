@@ -7,6 +7,9 @@ plugins {
     id("kotlin-parcelize")
 }
 
+// Smaller/faster APK: build with  -PENABLE_R8=true  (or env ENABLE_R8=true). Off by default for safety.
+val enableR8: Boolean = (System.getenv("ENABLE_R8") ?: (project.findProperty("ENABLE_R8") as String?) ?: "false").toBoolean()
+
 android {
     namespace = "com.kicklite"
     compileSdk = 34
@@ -16,7 +19,9 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "1.1.0"
+        buildConfigField("String", "KICK_CLIENT_ID", "\"${System.getenv("KICK_CLIENT_ID") ?: ""}\"")
+        buildConfigField("String", "KICK_REDIRECT_URI", "\"${System.getenv("KICK_REDIRECT_URI") ?: "kicklite://oauth/callback"}\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -44,7 +49,8 @@ android {
             } else {
                 signingConfigs.getByName("debug")
             }
-            isMinifyEnabled = false
+            isMinifyEnabled = enableR8
+            isShrinkResources = enableR8
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

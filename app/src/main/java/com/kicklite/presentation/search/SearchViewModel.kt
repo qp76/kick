@@ -1,6 +1,8 @@
 package com.kicklite.presentation.search
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import androidx.lifecycle.viewModelScope
 import com.kicklite.domain.common.Resource
 import com.kicklite.domain.usecase.SearchUseCase
@@ -18,8 +20,27 @@ import javax.inject.Inject
 @OptIn(FlowPreview::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
-    private val searchUseCase: SearchUseCase
+    private val searchUseCase: SearchUseCase,
+    @ApplicationContext context: Context
 ) : ViewModel() {
+
+    private val recentPrefs = context.getSharedPreferences("search_recent", Context.MODE_PRIVATE)
+
+    private fun loadRecent(): List<String> =
+        recentPrefs.getString("items", "")?.split("\n")?.filter { it.isNotBlank() } ?: emptyList()
+
+    private fun saveRecent(query: String) {
+        val q = query.trim()
+        if (q.isEmpty()) return
+        val list = (listOf(q) + loadRecent().filter { !it.equals(q, ignoreCase = true) }).take(8)
+        recentPrefs.edit().putString("items", list.joinToString("\n")).apply()
+        _state.value = _state.value.copy(recent = list)
+    }
+
+    fun clearRecent() {
+        recentPrefs.edit().remove("items").apply()
+        _state.value = _state.value.copy(recent = emptyList())
+    }
 
     private val _state = MutableStateFlow(SearchState())
     val state: StateFlow<SearchState> = _state.asStateFlow()
@@ -27,6 +48,7 @@ class SearchViewModel @Inject constructor(
     private val _searchQuery = MutableStateFlow("")
     
     init {
+        _state.value = _state.value.copy(recent = loadRecent())
         // Setup debounced search
         viewModelScope.launch {
             _searchQuery
@@ -68,6 +90,7 @@ class SearchViewModel @Inject constructor(
                         )
                     }
                     is Resource.Success -> {
+                        saveRecent(query)
                         resource.data?.let { searchResponse ->
                             _state.value = _state.value.copy(
                                 isLoading = false,

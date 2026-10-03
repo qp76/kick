@@ -1,5 +1,6 @@
 package com.kicklite.presentation.search
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -83,6 +84,31 @@ fun SearchScreen(
                     message = state.error ?: stringResource(R.string.error_unknown),
                     onRetryClick = viewModel::retry
                 )
+            }
+            !state.hasSearched && state.query.isBlank() && state.recent.isNotEmpty() -> {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Recent searches",
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { viewModel.clearRecent() }) { Text("Clear") }
+                    }
+                    state.recent.forEach { item ->
+                        Text(
+                            text = item,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { viewModel.updateQuery(item) }
+                                .padding(vertical = 12.dp)
+                        )
+                    }
+                }
             }
             !state.hasSearched -> {
                 Box(

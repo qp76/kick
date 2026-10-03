@@ -197,4 +197,8 @@ class HomeViewModel @Inject constructor(
     fun clearLanguageFilter() {
         selectLanguage(null)
     }
+
+    fun selectCategory(category: String?) {
+        _state.value = _state.value.copy(selectedCategory = category)
+    }
 }

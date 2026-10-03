@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kicklite.domain.common.Resource
 import com.kicklite.domain.model.LiveStream
+import com.kicklite.domain.model.ChatMessage
+import com.kicklite.data.remote.KickChatSocket
 import com.kicklite.domain.model.ChannelDetails
 import com.kicklite.domain.model.ChannelUser
 import com.kicklite.domain.model.ChannelImage
@@ -15,6 +17,7 @@ import com.kicklite.domain.usecase.ToggleFollowChannelUseCase
 import com.kicklite.data.repository.StreamQualityRepository
 import com.kicklite.data.model.StreamQuality
 import com.kicklite.data.local.QualityPreferences
+import com.kicklite.data.local.AdvancedChatPreferences
 import com.kicklite.presentation.player.PlayerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import androidx.media3.common.util.UnstableApi
@@ -36,7 +39,9 @@ class PlayerViewModel @Inject constructor(
     private val pipModeManager: PipModeManager,
     private val streamQualityRepository: StreamQualityRepository,
     private val qualityPreferences: QualityPreferences,
-    private val playerManager: PlayerManager
+    private val advancedChatPreferences: AdvancedChatPreferences,
+    private val playerManager: PlayerManager,
+    private val chatSocket: KickChatSocket
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PlayerState())
@@ -48,6 +53,10 @@ class PlayerViewModel @Inject constructor(
     private var isFirstChatLoad = true
     private var latestMessageTimestamp: String? = null
     private var cachedNormalQuality: StreamQuality? = null
+    private var socketJob: Job? = null
+    @Volatile private var socketConnected = false
+    private var chatroomId: Long? = null
+    private val socketBuffer = java.util.concurrent.ConcurrentLinkedQueue<ChatMessage>()
     
     init {
         // Load saved quality preference
@@ -70,7 +79,7 @@ class PlayerViewModel @Inject constructor(
     }
     
     companion object {
-        private const val MAX_CHAT_MESSAGES = 50 // Maximum chat messages to keep
+        private const val MAX_CHAT_MESSAGES = 300 // Maximum chat messages to keep
     }
 
     fun loadChannelData(channelSlug: String) {
@@ -175,7 +184,48 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun stopSocket() {
+        socketJob?.cancel()
+        socketJob = null
+        socketConnected = false
+        socketBuffer.clear()
+    }
+
+    private fun appendChatMessages(newOnes: List<ChatMessage>) {
+        if (newOnes.isEmpty()) return
+        val current = _state.value.chatMessages
+        val ids = HashSet<String>(current.size * 2)
+        current.forEach { ids.add(it.id) }
+        val fresh = newOnes.filter { ids.add(it.id) }
+        if (fresh.isEmpty()) return
+        _state.value = _state.value.copy(chatMessages = (current + fresh).takeLast(MAX_CHAT_MESSAGES))
+    }
+
+    // Live chat over WebSocket; messages are batched every 250ms so busy chats stay smooth
+    private fun ensureSocket() {
+        val room = chatroomId ?: return
+        if (socketJob != null) return
+        socketJob = viewModelScope.launch {
+            launch {
+                chatSocket.connect(room).collect { ev ->
+                    when (ev) {
+                        is KickChatSocket.Event.Connected -> socketConnected = true
+                        is KickChatSocket.Event.Disconnected -> socketConnected = false
+                        is KickChatSocket.Event.Message -> socketBuffer.add(ev.message)
+                    }
+                }
+            }
+            while (true) {
+                delay(250)
+                val batch = generateSequence { socketBuffer.poll() }.toList()
+                if (batch.isNotEmpty()) appendChatMessages(batch)
+            }
+        }
+    }
+
     private fun resetChatState() {
+        stopSocket()
+        chatroomId = null
         isFirstChatLoad = true
         latestMessageTimestamp = null
         _state.value = _state.value.copy(chatMessages = emptyList())
@@ -200,43 +250,14 @@ class PlayerViewModel @Inject constructor(
                                 
                                 // En son mesajın timestamp'ini kaydet
                                 latestMessageTimestamp = sortedMessages.lastOrNull()?.createdAt
+                                if (chatroomId == null) chatroomId = sortedMessages.lastOrNull()?.chatId?.takeIf { it > 0 }
                                 println("DEBUG: Latest timestamp set to: $latestMessageTimestamp")
                                 isFirstChatLoad = false
                             } else {
-                                // Sonraki yüklemeler - sadece yeni mesajları ekle
-                                val currentMessages = _state.value.chatMessages.toMutableList()
-                                val latestTimestamp = latestMessageTimestamp
-                                
-                                if (latestTimestamp != null) {
-                                    // Sadece en son mesajdan sonraki mesajları al
-                                    val newMessagesOnly = newMessages.filter { message ->
-                                        message.createdAt > latestTimestamp
-                                    }.sortedBy { it.createdAt }
-                                    
-                                    println("DEBUG: Found ${newMessagesOnly.size} new messages")
-                                    
-                                    if (newMessagesOnly.isNotEmpty()) {
-                                        // Yeni mesajları ekle
-                                        currentMessages.addAll(newMessagesOnly)
-                                        
-                                        // Maksimum mesaj sayısını aş-tığında baştan çıkar
-                                        val finalMessages = if (currentMessages.size > MAX_CHAT_MESSAGES) {
-                                            currentMessages.takeLast(MAX_CHAT_MESSAGES)
-                                        } else {
-                                            currentMessages
-                                        }
-                                        
-                                        println("DEBUG: Updated chat - total messages: ${finalMessages.size}")
-                                        _state.value = _state.value.copy(
-                                            chatMessages = finalMessages
-                                        )
-                                        
-                                        // En son mesajın timestamp'ini güncelle
-                                        latestMessageTimestamp = newMessagesOnly.lastOrNull()?.createdAt
-                                        println("DEBUG: Latest timestamp updated to: $latestMessageTimestamp")
-                                    }
-                                }
+                                appendChatMessages(newMessages.sortedBy { it.createdAt })
+                                if (chatroomId == null) chatroomId = newMessages.lastOrNull()?.chatId?.takeIf { it > 0 }
                             }
+                            ensureSocket()
                         }
                     }
                     is Resource.Error -> {
@@ -452,13 +473,14 @@ class PlayerViewModel @Inject constructor(
         
         chatRefreshJob = viewModelScope.launch {
             while (coroutineContext[Job]?.isActive == true && currentChannelId == channelId) {
-                delay(1000) // 1 saniyede 1 yenile
-                loadChatHistory(channelId)
+                delay(1000)
+                if (!socketConnected) loadChatHistory(channelId)
             }
         }
     }
     
     private fun stopChatAutoRefresh() {
+        stopSocket()
         chatRefreshJob?.cancel()
         chatRefreshJob = null
         currentChannelId = null
@@ -508,7 +530,10 @@ class PlayerViewModel @Inject constructor(
                 val savedQuality = qualityPreferences.getSavedQuality()
                 
                 // Try to find the saved quality in available qualities
-                val selectedQuality = if (savedQuality.id != "auto") {
+                val selectedQuality = if (advancedChatPreferences.dataSaver.value) {
+                    streamManifest.qualities.filter { it.id != "auto" }.minByOrNull { it.bandwidth }
+                        ?: StreamQuality.AUTO
+                } else if (savedQuality.id != "auto") {
                     streamManifest.qualities.find { it.id == savedQuality.id }
                         ?: streamManifest.qualities.find { it.name == savedQuality.name }
                         ?: StreamQuality.AUTO

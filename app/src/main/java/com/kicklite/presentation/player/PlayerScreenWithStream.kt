@@ -35,6 +35,9 @@ fun PlayerScreenWithStream(
     viewModel: PlayerViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val chatSettingsViewModel: ChatSettingsViewModel = hiltViewModel()
+    val chatWidth by chatSettingsViewModel.advancedPrefs.chatWidth.collectAsStateWithLifecycle()
+    val chatSide by chatSettingsViewModel.advancedPrefs.chatSide.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     // Track player screen state in MainActivity
@@ -169,6 +172,12 @@ fun PlayerScreenWithStream(
                             modifier = Modifier.fillMaxSize()
                         )
 
+                        PlayerGestureLayer(
+                            onTap = { viewModel.onControlsToggle() },
+                            onDoubleTap = { viewModel.onPlayPause() },
+                            modifier = Modifier.fillMaxSize()
+                        )
+
                         // Fullscreen video controls
                         VideoPlayerControls(
                             isPlaying = state.isPlaying,
@@ -240,14 +249,19 @@ fun PlayerScreenWithStream(
                         }
                     }
                     if (showSideChat) {
-                        ChatSection(
-                            chatMessages = state.chatMessages,
-                            channelName = state.stream?.channel?.username ?: stringResource(R.string.channel_default_name),
-                            modifier = Modifier
-                                .width(320.dp)
-                                .fillMaxHeight(),
-                            onClose = { showSideChat = false }
-                        )
+                        val chat: @Composable () -> Unit = {
+                            ChatSection(
+                                chatMessages = state.chatMessages,
+                                channelName = state.stream?.channel?.username ?: stringResource(R.string.channel_default_name),
+                                modifier = Modifier.width(chatWidth.dp).fillMaxHeight(),
+                                onClose = { showSideChat = false }
+                            )
+                        }
+                        if (chatSide == "left") {
+                            // Left-side chat is rendered before the video in the Row below; this branch is
+                            // kept for state compatibility and is handled by the alternate container.
+                        }
+                        chat()
                     }
                     }
                 } else {

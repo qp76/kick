@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -35,9 +36,12 @@ import com.kicklite.domain.model.ThemePreference
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
-    viewModel: ThemeViewModel = hiltViewModel()
+    viewModel: ThemeViewModel = hiltViewModel(),
+    appPrefsViewModel: AppPreferencesViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
     val themePreference by viewModel.themePreference.collectAsState()
+    val dataSaver by appPrefsViewModel.prefs.dataSaver.collectAsState()
     val themeOptions = listOf(
         ThemePreference.AUTO,
         ThemePreference.LIGHT,
@@ -80,6 +84,24 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            item {
+                ListItem(
+                    headlineContent = { Text("Kick account") },
+                    supportingContent = { Text(if (authViewModel.auth.isConfigured()) "Sign in through the official Kick authorization page." else "OAuth is ready, but this build has no Kick client ID configured.") },
+                    trailingContent = {
+                        androidx.compose.material3.Button(onClick = { authViewModel.auth.beginLogin() }, enabled = authViewModel.auth.isConfigured()) { Text("Sign in") }
+                    }
+                )
+            }
+
+            item {
+                ListItem(
+                    headlineContent = { Text("Data saver") },
+                    supportingContent = { Text("Prefer the lowest available stream quality to reduce mobile data usage.") },
+                    trailingContent = { Switch(checked = dataSaver, onCheckedChange = appPrefsViewModel.prefs::setDataSaver) }
+                )
             }
 
             items(themeOptions) { option ->

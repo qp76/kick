@@ -9,6 +9,9 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.FilterChip
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -147,12 +150,36 @@ fun HomeScreen(
                     }
                 }
                 else -> {
+                    val categoryChips = remember(state.streams) {
+                        state.streams.map { it.category.name }.filter { it.isNotBlank() }.distinct().take(12)
+                    }
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
+                        if (categoryChips.isNotEmpty()) {
+                            item {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    FilterChip(
+                                        selected = state.selectedCategory == null,
+                                        onClick = { viewModel.selectCategory(null) },
+                                        label = { Text("All") }
+                                    )
+                                    categoryChips.forEach { category ->
+                                        FilterChip(
+                                            selected = state.selectedCategory == category,
+                                            onClick = { viewModel.selectCategory(category) },
+                                            label = { Text(category, maxLines = 1) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         // Language filter
                         if (state.showLanguageFilter) {
                             item {
@@ -236,7 +263,7 @@ fun HomeScreen(
                             }
                         }
 
-                        items(state.streams) { stream ->
+                        items(state.streams.filter { state.selectedCategory == null || it.category.name == state.selectedCategory }) { stream ->
                             StreamItem(
                         stream = stream,
                         onClick = { onStreamClick(stream) },

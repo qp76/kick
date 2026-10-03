@@ -28,3 +28,19 @@ app/src/main/java/com/kicklite/
 ├── di/            # Hilt modules
 └── ui/theme/      # Kick-Lite colors, typography, shapes
 ```
+
+
+## Advanced features in 1.1.0
+
+- Home category chips sourced from live stream data.
+- Chat user mute by long-press, persistent keyword highlighting, and pinned-message presentation when Kick supplies pin metadata.
+- Configurable fullscreen chat width and persistent chat preferences.
+- Data Saver mode prefers the lowest available HLS quality.
+- Real channel-video API results only; no fabricated fallback videos.
+- Kick OAuth 2.1 PKCE browser/deep-link flow scaffold.
+
+### Kick login
+
+Kick requires a registered application client ID and redirect URI. The Android client starts the official `https://id.kick.com/oauth/authorize` flow and validates the OAuth `state` on return. Kick's documented authorization-code exchange also requires a client secret, so the final token exchange must be performed by a trusted backend rather than shipping the secret inside the APK.
+
+For a production build, set `KICK_CLIENT_ID` and `KICK_REDIRECT_URI` in the build environment and register the exact redirect URI in the Kick developer application. The default Android callback is `kicklite://oauth/callback`.

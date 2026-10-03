@@ -19,3 +19,18 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# ---- Kick-Lite R8 rules ----
+-keepattributes Signature, *Annotation*, InnerClasses, EnclosingMethod, SourceFile, LineNumberTable
+# Gson/Retrofit models are filled by reflection
+-keep class com.kicklite.data.dto.** { *; }
+-keep class com.kicklite.domain.model.** { *; }
+-keepclassmembers class * { @com.google.gson.annotations.SerializedName <fields>; }
+-keep interface com.kicklite.data.remote.** { *; }
+-dontwarn okhttp3.internal.platform.**
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
+-dontwarn org.openjsse.**
+-dontwarn javax.annotation.**
+-dontwarn kotlin.Unit
+-keep class kotlin.coroutines.Continuation

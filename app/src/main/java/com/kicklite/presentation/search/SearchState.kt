@@ -11,5 +11,6 @@ data class SearchState(
     val tags: List<TagSearchResult> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val hasSearched: Boolean = false
+    val hasSearched: Boolean = false,
+    val recent: List<String> = emptyList()
 )

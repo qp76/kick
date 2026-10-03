@@ -10,5 +10,6 @@ data class HomeState(
     val nextCursor: String? = null,
     val isLoadingMore: Boolean = false,
     val selectedLanguage: String? = null,
-    val showLanguageFilter: Boolean = false
+    val showLanguageFilter: Boolean = false,
+    val selectedCategory: String? = null
 )

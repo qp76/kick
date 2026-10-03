@@ -1,0 +1,36 @@
+workflows:
+  kick-lite-apk:
+    name: Kick Lite - Android APK
+    max_build_duration: 60
+    environment:
+      java: 17
+      vars:
+        GRADLE_VERSION: "8.2"
+        KEYSTORE_PASSWORD: "kicklite-pass"
+        KEY_PASSWORD: "kicklite-pass"
+        KEY_ALIAS: "kicklite"
+    scripts:
+      - name: Set Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
+
+      - name: Create signing keystore and build release APK
+        script: |
+          set -e
+          # The repo has no gradle-wrapper.jar, so download the exact Gradle this project needs
+          curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp
+          export PATH="/tmp/gradle-${GRADLE_VERSION}/bin:$PATH"
+
+          # Self-signed keystore so the release APK is installable on any phone
+          export KEYSTORE_PATH="$CM_BUILD_DIR/kicklite-release.keystore"
+          keytool -genkeypair -v \
+            -keystore "$KEYSTORE_PATH" \
+            -alias "$KEY_ALIAS" \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" \
+            -dname "CN=Kick Lite, OU=Mobile, O=Kick Lite, C=US"
+
+          gradle --no-daemon assembleRelease
+    artifacts:
+      - app/build/outputs/**/*.apk

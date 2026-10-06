@@ -4,4 +4,4 @@ compatibility_date = "2026-10-06"
 
 [[kv_namespaces]]
 binding = "OAUTH_SESSIONS"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "13c084669d214999ab6527d87a536b47"

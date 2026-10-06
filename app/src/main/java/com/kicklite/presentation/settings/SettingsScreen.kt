@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Button
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +28,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -41,6 +47,10 @@ fun SettingsScreen(
     viewModel: ThemeViewModel = hiltViewModel()
 ) {
     val themePreference by viewModel.themePreference.collectAsState()
+    val authViewModel: KickAuthViewModel = hiltViewModel()
+    val context = LocalContext.current
+    val apiConfigured by authViewModel.configured.collectAsState()
+    var tokenInput by remember { mutableStateOf("") }
     val themeOptions = listOf(
         ThemePreference.AUTO,
         ThemePreference.LIGHT,
@@ -69,6 +79,38 @@ fun SettingsScreen(
             contentPadding = PaddingValues(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("KICK API", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (apiConfigured) "Official KICK API token configured on this device." else "For testing, you can provide an access token issued by your KICK app/backend.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = tokenInput,
+                        onValueChange = { tokenInput = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("Access token") },
+                        supportingText = { Text("Do not commit tokens to GitHub. A backend/OAuth flow is recommended for production.") }
+                    )
+                    Button(
+                        onClick = { authViewModel.startLogin(context) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Log in with KICK") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = { authViewModel.saveToken(tokenInput); tokenInput = "" },
+                            enabled = tokenInput.isNotBlank()
+                        ) { Text("Save token") }
+                        if (apiConfigured) {
+                            androidx.compose.material3.OutlinedButton(onClick = { authViewModel.clearToken() }) { Text("Clear") }
+                        }
+                    }
+                }
+            }
+
             item {
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)

@@ -1,11 +1,11 @@
 package com.kicklite.data.repository
 
-import com.kicklite.data.remote.KickApi
-import com.kicklite.data.remote.KickChannelApi
+import com.kicklite.common.DebugLogger
+import com.kicklite.data.remote.KickPublicApi
+import com.kicklite.data.remote.OfficialApiParser
 import com.kicklite.domain.common.Resource
 import com.kicklite.domain.model.StreamsResponse
 import com.kicklite.domain.repository.StreamRepository
-import com.kicklite.common.DebugLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import retrofit2.HttpException
@@ -15,8 +15,7 @@ import javax.inject.Singleton
 
 @Singleton
 class StreamRepositoryImpl @Inject constructor(
-    private val api: KickApi,
-    private val channelApi: KickChannelApi
+    private val api: KickPublicApi
 ) : StreamRepository {
 
     override suspend fun getPopularStreams(
@@ -24,35 +23,33 @@ class StreamRepositoryImpl @Inject constructor(
         cursor: String?,
         language: String?
     ): Flow<Resource<StreamsResponse>> = flow {
+        emit(Resource.Loading())
         try {
-            emit(Resource.Loading())
-            
-            DebugLogger.logApi("API call - limit: $limit, after: $cursor, language: $language")
-            
-            val response = api.getPopularStreams(
-                limit = limit,
-                after = cursor,
-                language = language
-            )
-            
-            DebugLogger.logApi("API response code: ${response.code()}")
-            
+            DebugLogger.logApi("Official KICK API /public/v2/livestreams limit=$limit cursor=$cursor language=$language")
+            val response = api.getLivestreams(limit = limit.coerceIn(1, 100), cursor = cursor, language = language)
             if (response.isSuccessful) {
-                response.body()?.let { apiResponse ->
-                    DebugLogger.logApi("API response successful, streams count: ${apiResponse.data.livestreams.size}")
-                    DebugLogger.logApi("Next cursor from API: ${apiResponse.data.pagination.nextCursor}")
-                    emit(Resource.Success(apiResponse.data.toDomainModel()))
-                } ?: emit(Resource.Error("Response body is null"))
+                val body = response.body()
+                if (body == null) {
+                    emit(Resource.Error("KICK API returned an empty response"))
+                } else {
+                    val parsed = OfficialApiParser.livestreams(body)
+                    emit(Resource.Success(parsed))
+                }
             } else {
-                DebugLogger.logApi("API response failed: ${response.code()} - ${response.message()}")
-                emit(Resource.Error("HTTP ${response.code()}: ${response.message()}"))
+                val message = when (response.code()) {
+                    401 -> "KICK API authorization is missing or expired. Configure a valid app/user access token or your API gateway."
+                    403 -> "KICK API denied this request. Check the app scopes/token."
+                    429 -> "KICK API rate limit reached. Try again in a moment."
+                    else -> "KICK API HTTP ${response.code()}: ${response.message()}"
+                }
+                emit(Resource.Error(message))
             }
         } catch (e: HttpException) {
-            emit(Resource.Error("Network error: ${e.localizedMessage ?: "Unknown error"}"))
+            emit(Resource.Error("KICK API network error: ${e.localizedMessage ?: "Unknown error"}"))
         } catch (e: IOException) {
-            emit(Resource.Error("IO error: ${e.localizedMessage ?: "Connection failed"}"))
+            emit(Resource.Error("Connection failed: ${e.localizedMessage ?: "No network connection"}"))
         } catch (e: Exception) {
-            emit(Resource.Error("Unexpected error: ${e.localizedMessage ?: "Unknown error"}"))
+            emit(Resource.Error("KICK API error: ${e.localizedMessage ?: "Unknown error"}"))
         }
     }
 }

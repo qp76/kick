@@ -97,6 +97,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var playbackNotificationManager: PlaybackNotificationManager
 
+    @Inject
+    lateinit var kickOAuthManager: com.kicklite.data.remote.KickOAuthManager
+
     
     private var isVideoPlaying = false
     private var isOnPlayerScreen = false
@@ -109,8 +112,18 @@ class MainActivity : ComponentActivity() {
     
     private lateinit var notificationPermissionLauncher: ActivityResultLauncher<String>
     
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.data?.let { kickOAuthManager.handleCallback(this, it) }
+        if (intent.getBooleanExtra("open_now_playing", false)) {
+            handleNowPlayingNavigation(navController ?: return, sharedDataViewModel ?: return)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        intent.data?.let { kickOAuthManager.handleCallback(this, it) }
         // If launched from notification, we may need to open the now playing screen
     val openNowPlayingFromIntent = intent?.getBooleanExtra("open_now_playing", false) == true
         // Register runtime permission launcher for Android 13+ notifications
@@ -591,12 +604,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: android.content.Intent?) {
-        super.onNewIntent(intent)
-        if (intent?.getBooleanExtra("open_now_playing", false) == true) {
-            handleNowPlayingNavigation(navController ?: return, sharedDataViewModel ?: return)
-        }
-    }
+    // onNewIntent is declared above so OAuth deep-links and notification intents share one handler.
 
     private fun handleNowPlayingNavigation(navController: androidx.navigation.NavController, shared: SharedDataViewModel) {
         // First attempt: existing selected stream

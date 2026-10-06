@@ -9,6 +9,7 @@ workflows:
         KEYSTORE_PASSWORD: "kicklite-pass"
         KEY_PASSWORD: "kicklite-pass"
         KEY_ALIAS: "kicklite"
+        KICK_API_BASE_URL: "https://api.kick.com/"
     scripts:
       - name: Set Android SDK location
         script: |
@@ -31,6 +32,7 @@ workflows:
             -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" \
             -dname "CN=Kick Lite, OU=Mobile, O=Kick Lite, C=US"
 
+          export KICK_API_BASE_URL="${KICK_API_BASE_URL:-https://api.kick.com/}"
           gradle --no-daemon assembleRelease
     artifacts:
       - app/build/outputs/**/*.apk

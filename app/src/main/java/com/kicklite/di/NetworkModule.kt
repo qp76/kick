@@ -3,6 +3,9 @@ package com.kicklite.di
 import com.kicklite.data.remote.KickApi
 import com.kicklite.data.remote.KickChannelApi
 import com.kicklite.data.remote.KickSearchApi
+import com.kicklite.data.remote.KickPublicApi
+import com.kicklite.data.local.KickTokenStore
+import com.kicklite.BuildConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,6 +37,10 @@ object NetworkModule {
     @Retention(AnnotationRetention.BINARY)
     annotation class SearchApi
 
+    @Qualifier
+    @Retention(AnnotationRetention.BINARY)
+    annotation class OfficialApi
+
     @Provides
     @Singleton
     fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor {
@@ -52,7 +59,8 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         loggingInterceptor: HttpLoggingInterceptor,
-        cookieJar: CookieJar
+        cookieJar: CookieJar,
+        tokenStore: KickTokenStore
     ): OkHttpClient {
         val defaultHeadersInterceptor = okhttp3.Interceptor { chain ->
             val request = chain.request()
@@ -70,6 +78,11 @@ object NetworkModule {
                 if (request.header("Referer") == null) {
                     builder.header("Referer", "https://kick.com/")
                 }
+            }
+
+            if (host == "api.kick.com" && request.header("Authorization") == null) {
+                val token = tokenStore.getAccessToken()?.takeIf { it.isNotBlank() } ?: BuildConfig.KICK_API_TOKEN.takeIf { it.isNotBlank() }
+                if (token != null) builder.header("Authorization", "Bearer $token")
             }
 
             chain.proceed(builder.build())
@@ -109,6 +122,17 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    @OfficialApi
+    fun provideOfficialRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl(BuildConfig.KICK_API_BASE_URL.ensureTrailingSlash())
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+    }
+
+    @Provides
+    @Singleton
     @SearchApi
     fun provideSearchRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
@@ -135,4 +159,12 @@ object NetworkModule {
     fun provideKickSearchApi(@SearchApi retrofit: Retrofit): KickSearchApi {
         return retrofit.create(KickSearchApi::class.java)
     }
+
+    @Provides
+    @Singleton
+    fun provideKickPublicApi(@OfficialApi retrofit: Retrofit): KickPublicApi {
+        return retrofit.create(KickPublicApi::class.java)
+    }
+
+    private fun String.ensureTrailingSlash(): String = if (endsWith("/")) this else "$this/"
 }

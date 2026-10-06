@@ -21,6 +21,12 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
+        // Official KICK API configuration. Keep secrets out of source control.
+        buildConfigField("String", "KICK_API_BASE_URL", "\"${System.getenv("KICK_API_BASE_URL") ?: "https://api.kick.com/"}\"")
+        buildConfigField("String", "KICK_API_TOKEN", "\"${System.getenv("KICK_API_TOKEN") ?: ""}\"")
+        buildConfigField("String", "KICK_OAUTH_GATEWAY_URL", "\"${System.getenv("KICK_OAUTH_GATEWAY_URL") ?: ""}\"")
+        buildConfigField("String", "KICK_CLIENT_ID", "\"${System.getenv("KICK_CLIENT_ID") ?: ""}\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -65,6 +71,7 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+        buildConfig = true
     }
     composeOptions {
         kotlinCompilerExtensionVersion = "1.5.4"

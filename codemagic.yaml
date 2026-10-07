@@ -19,7 +19,7 @@ workflows:
         script: |
           echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/local.properties"
 
-      - name: Create signing keystore and build release APK
+      - name: Build signed release APK
         script: |
           set -e
 
@@ -39,7 +39,9 @@ workflows:
             -keypass "$KEY_PASSWORD" \
             -dname "CN=Kick Lite, OU=Mobile, O=Kick Lite, C=US"
 
-          gradle --no-daemon assembleRelease
+          gradle --no-daemon clean assembleRelease
+
+          test -f app/build/outputs/apk/release/app-release.apk
 
     artifacts:
-      - app/build/outputs/**/*.apk
+      - app/build/outputs/apk/release/app-release.apk

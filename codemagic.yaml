@@ -2,6 +2,7 @@ workflows:
   kick-lite-apk:
     name: Kick Lite - Android APK
     max_build_duration: 60
+
     environment:
       java: 17
       vars:
@@ -10,6 +11,9 @@ workflows:
         KEY_PASSWORD: "kicklite-pass"
         KEY_ALIAS: "kicklite"
         KICK_API_BASE_URL: "https://api.kick.com/"
+        KICK_OAUTH_GATEWAY_URL: "https://kick.boy82102.workers.dev"
+        KICK_CLIENT_ID: "01M49PCKJNDH3XN0DTA53XYXXK"
+
     scripts:
       - name: Set Android SDK location
         script: |
@@ -18,21 +22,24 @@ workflows:
       - name: Create signing keystore and build release APK
         script: |
           set -e
-          # The repo has no gradle-wrapper.jar, so download the exact Gradle this project needs
+
           curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /tmp
           export PATH="/tmp/gradle-${GRADLE_VERSION}/bin:$PATH"
 
-          # Self-signed keystore so the release APK is installable on any phone
           export KEYSTORE_PATH="$CM_BUILD_DIR/kicklite-release.keystore"
+
           keytool -genkeypair -v \
             -keystore "$KEYSTORE_PATH" \
             -alias "$KEY_ALIAS" \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass "$KEYSTORE_PASSWORD" -keypass "$KEY_PASSWORD" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEY_PASSWORD" \
             -dname "CN=Kick Lite, OU=Mobile, O=Kick Lite, C=US"
 
-          export KICK_API_BASE_URL="${KICK_API_BASE_URL:-https://api.kick.com/}"
           gradle --no-daemon assembleRelease
+
     artifacts:
       - app/build/outputs/**/*.apk

@@ -22,16 +22,28 @@ function randomCode(): string {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
 }
 
+function configured(env: Env): boolean {
+  return Boolean(env.KICK_CLIENT_ID?.trim() && env.KICK_CLIENT_SECRET?.trim() &&
+    env.KICK_REDIRECT_URI?.trim() && env.OAUTH_SESSIONS);
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === "/health") return json({ ok: true, service: "kick-lite-oauth-gateway" });
+    if (url.pathname === "/health") {
+      return json({ ok: true, service: "kick-lite-oauth-gateway" });
+    }
 
     if (url.pathname === "/oauth/start") {
+      if (!configured(env)) return json({ error: "OAuth gateway is not fully configured" }, 503);
       const state = url.searchParams.get("state");
       const codeChallenge = url.searchParams.get("code_challenge");
       if (!state || !codeChallenge) return json({ error: "state and code_challenge are required" }, 400);
+      if (!/^[A-Za-z0-9_-]{20,128}$/.test(state) ||
+          !/^[A-Za-z0-9_-]{43,128}$/.test(codeChallenge)) {
+        return json({ error: "Invalid state or PKCE challenge format" }, 400);
+      }
 
       const auth = new URL(KICK_AUTH);
       auth.searchParams.set("response_type", "code");
@@ -47,13 +59,20 @@ export default {
     if (url.pathname === "/oauth/callback") {
       const code = url.searchParams.get("code");
       const state = url.searchParams.get("state");
-      if (!code || !state) return new Response("Missing OAuth code/state", { status: 400 });
+      const providerError = url.searchParams.get("error");
+      if (providerError) {
+        const callback = new URL("kicklite://oauth/callback");
+        callback.searchParams.set("error", providerError);
+        if (state) callback.searchParams.set("state", state);
+        const description = url.searchParams.get("error_description");
+        if (description) callback.searchParams.set("error_description", description.slice(0, 300));
+        return Response.redirect(callback.toString(), 302);
+      }
+      if (!code || !state) return new Response("Missing OAuth code/state. Return to Kick Lite and try again.", { status: 400 });
+      if (!configured(env)) return new Response("OAuth gateway is not fully configured.", { status: 503 });
 
-      // The verifier remains on the Android side. KICK validates the PKCE challenge
-      // while this server supplies the confidential client secret.
       const verifier = await env.OAUTH_SESSIONS.get(`pkce:${state}`);
-      if (!verifier) return new Response("OAuth state expired or invalid", { status: 400 });
-      await env.OAUTH_SESSIONS.delete(`pkce:${state}`);
+      if (!verifier) return new Response("OAuth state expired or invalid. Return to Kick Lite and try again.", { status: 400 });
 
       const body = new URLSearchParams({
         code,
@@ -63,16 +82,32 @@ export default {
         grant_type: "authorization_code",
         code_verifier: verifier
       });
-      const tokenResponse = await fetch(KICK_TOKEN, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body
-      });
-      if (!tokenResponse.ok) return new Response(await tokenResponse.text(), { status: 502 });
+      let tokenResponse: Response;
+      try {
+        tokenResponse = await fetch(KICK_TOKEN, {
+          method: "POST",
+          headers: { "content-type": "application/x-www-form-urlencoded" },
+          body
+        });
+      } catch {
+        return new Response("Could not reach Kick token service. Return to Kick Lite and try again.", { status: 502 });
+      }
+
+      if (!tokenResponse.ok) {
+        const details = (await tokenResponse.text()).slice(0, 500);
+        // Keep the PKCE verifier until the provider confirms the exchange succeeded.
+        return new Response(`Kick token exchange failed (HTTP ${tokenResponse.status}). ${details}`, { status: 502 });
+      }
 
       const token = await tokenResponse.json() as Record<string, unknown>;
+      if (typeof token.access_token !== "string" || !token.access_token) {
+        return new Response("Kick token response did not contain an access token.", { status: 502 });
+      }
+
       const exchangeCode = randomCode();
-      await env.OAUTH_SESSIONS.put(`token:${exchangeCode}`, JSON.stringify(token), { expirationTtl: 90 });
+      await env.OAUTH_SESSIONS.put(`token:${exchangeCode}`, JSON.stringify({ state, token }), { expirationTtl: 90 });
+      // Only consume the PKCE verifier after a successful upstream exchange.
+      await env.OAUTH_SESSIONS.delete(`pkce:${state}`);
 
       return Response.redirect(`kicklite://oauth/callback?code=${encodeURIComponent(exchangeCode)}&state=${encodeURIComponent(state)}`, 302);
     }
@@ -80,10 +115,23 @@ export default {
     if (url.pathname === "/oauth/exchange" && request.method === "POST") {
       const payload = await request.json().catch(() => null) as { code?: string; state?: string } | null;
       if (!payload?.code || !payload.state) return json({ error: "code and state are required" }, 400);
-      const raw = await env.OAUTH_SESSIONS.get(`token:${payload.code}`);
-      if (!raw) return json({ error: "code expired or already used" }, 400);
-      await env.OAUTH_SESSIONS.delete(`token:${payload.code}`);
-      return json(JSON.parse(raw));
+      const key = `token:${payload.code}`;
+      const raw = await env.OAUTH_SESSIONS.get(key);
+      if (!raw) return json({ error: "Exchange code expired or already used. Please sign in again." }, 400);
+
+      let record: { state?: string; token?: Record<string, unknown> };
+      try {
+        record = JSON.parse(raw) as { state?: string; token?: Record<string, unknown> };
+      } catch {
+        await env.OAUTH_SESSIONS.delete(key);
+        return json({ error: "Invalid exchange session. Please sign in again." }, 400);
+      }
+      if (!record.state || record.state !== payload.state || !record.token) {
+        return json({ error: "OAuth state mismatch. Please sign in again." }, 400);
+      }
+
+      await env.OAUTH_SESSIONS.delete(key);
+      return json(record.token);
     }
 
     if (url.pathname === "/oauth/revoke" && request.method === "POST") {
@@ -94,12 +142,22 @@ export default {
       revokeUrl.searchParams.set("token", token);
       revokeUrl.searchParams.set("token_hint_type", "access_token");
       const response = await fetch(revokeUrl, { method: "POST" });
-      return new Response(await response.text(), { status: response.status, headers: { "cache-control": "no-store" } });
+      return new Response(await response.text(), {
+        status: response.status,
+        headers: { "cache-control": "no-store" }
+      });
     }
 
-    if (url.pathname.startsWith("/oauth/pkce") && request.method === "POST") {
+    if (url.pathname === "/oauth/pkce" && request.method === "POST") {
+      if (!configured(env)) return json({ error: "OAuth gateway is not fully configured" }, 503);
       const payload = await request.json().catch(() => null) as { state?: string; code_verifier?: string } | null;
-      if (!payload?.state || !payload.code_verifier) return json({ error: "state and code_verifier are required" }, 400);
+      if (!payload?.state || !payload.code_verifier) {
+        return json({ error: "state and code_verifier are required" }, 400);
+      }
+      if (!/^[A-Za-z0-9_-]{20,128}$/.test(payload.state) ||
+          !/^[A-Za-z0-9_-]{43,128}$/.test(payload.code_verifier)) {
+        return json({ error: "Invalid state or code_verifier format" }, 400);
+      }
       await env.OAUTH_SESSIONS.put(`pkce:${payload.state}`, payload.code_verifier, { expirationTtl: 600 });
       return json({ ok: true });
     }
@@ -112,7 +170,11 @@ export default {
       const headers = new Headers(request.headers);
       headers.set("authorization", auth);
       headers.delete("host");
-      const response = await fetch(upstream, { method: request.method, headers, body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body });
+      const response = await fetch(upstream, {
+        method: request.method,
+        headers,
+        body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body
+      });
       const out = new Response(response.body, response);
       out.headers.set("cache-control", "no-store");
       return out;

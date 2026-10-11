@@ -70,11 +70,21 @@ class KickOAuthManager @Inject constructor(
 
     fun handleCallback(context: Context, uri: Uri): Boolean {
         if (uri.scheme != "kicklite" || uri.host != "oauth" || uri.path != "/callback") return false
-        val code = uri.getQueryParameter("code") ?: return false
-        val state = uri.getQueryParameter("state") ?: return false
         val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-        if (prefs.getString("state", null) != state) {
-            Log.e(tag, "OAuth callback rejected: state mismatch")
+        val state = uri.getQueryParameter("state")
+        val providerError = uri.getQueryParameter("error")
+        if (providerError != null) {
+            Log.e(tag, "Kick authorization was declined/failed: $providerError; ${uri.getQueryParameter("error_description").orEmpty()}")
+            if (state != null && prefs.getString("state", null) == state) prefs.edit().clear().apply()
+            return true
+        }
+
+        val code = uri.getQueryParameter("code") ?: run {
+            Log.e(tag, "OAuth callback has no authorization code")
+            return false
+        }
+        if (state.isNullOrBlank() || prefs.getString("state", null) != state) {
+            Log.e(tag, "OAuth callback rejected: missing or mismatched state")
             return false
         }
 
@@ -93,8 +103,6 @@ class KickOAuthManager @Inject constructor(
                 client.newCall(request).execute().use { response ->
                     val responseText = response.body?.string().orEmpty()
                     if (!response.isSuccessful) {
-                        // Keep state/verifier so a transient exchange failure is diagnosable
-                        // and does not look like a successful login on the next app launch.
                         Log.e(tag, "OAuth code exchange failed: HTTP ${response.code}: ${responseText.take(300)}")
                         return@use
                     }

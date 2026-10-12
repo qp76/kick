@@ -27,6 +27,43 @@ function configured(env: Env): boolean {
     env.KICK_REDIRECT_URI?.trim() && env.OAUTH_SESSIONS);
 }
 
+function apiConfigured(env: Env): boolean {
+  return Boolean(env.KICK_CLIENT_ID?.trim() && env.KICK_CLIENT_SECRET?.trim() && env.OAUTH_SESSIONS);
+}
+
+async function getAppAccessToken(env: Env): Promise<string> {
+  const cacheKey = "app:access_token";
+  const cached = await env.OAUTH_SESSIONS.get(cacheKey);
+  if (cached) return cached;
+  if (!apiConfigured(env)) throw new Error("Public API gateway is not configured");
+
+  const body = new URLSearchParams({
+    client_id: env.KICK_CLIENT_ID,
+    client_secret: env.KICK_CLIENT_SECRET,
+    grant_type: "client_credentials"
+  });
+  const response = await fetch(KICK_TOKEN, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body
+  });
+  if (!response.ok) {
+    const details = (await response.text()).slice(0, 300);
+    throw new Error(`Kick app-token request failed (HTTP ${response.status}): ${details}`);
+  }
+
+  const data = await response.json() as { access_token?: unknown; expires_in?: unknown };
+  if (typeof data.access_token !== "string" || !data.access_token) {
+    throw new Error("Kick app-token response did not contain an access token");
+  }
+  const expiresIn = typeof data.expires_in === "number"
+    ? data.expires_in
+    : Number(data.expires_in) || 3600;
+  const ttl = Math.max(60, Math.min(86400, Math.floor(expiresIn) - 60));
+  await env.OAUTH_SESSIONS.put(cacheKey, data.access_token, { expirationTtl: ttl });
+  return data.access_token;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -163,8 +200,19 @@ export default {
     }
 
     if (url.pathname.startsWith("/api/")) {
-      const auth = request.headers.get("authorization");
-      if (!auth) return json({ error: "authorization required" }, 401);
+      // Public Kick API endpoints work without the user signing in. Use a short-lived
+      // app token server-side when the app has not supplied a user access token.
+      let auth = request.headers.get("authorization");
+      if (!auth) {
+        try {
+          auth = `Bearer ${await getAppAccessToken(env)}`;
+        } catch (error) {
+          return json({
+            error: "Could not authorize the public KICK API request",
+            details: error instanceof Error ? error.message : "Unknown token error"
+          }, 502);
+        }
+      }
       const upstreamPath = url.pathname.substring("/api".length);
       const upstream = new URL(KICK_API + upstreamPath + url.search);
       const headers = new Headers(request.headers);

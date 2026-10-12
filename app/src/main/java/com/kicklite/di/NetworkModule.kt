@@ -124,8 +124,16 @@ object NetworkModule {
     @Singleton
     @OfficialApi
     fun provideOfficialRetrofit(okHttpClient: OkHttpClient): Retrofit {
+        // Route official API calls through the Worker so public endpoints can use a
+        // server-side app token without shipping the Kick client secret in the APK.
+        val gateway = BuildConfig.KICK_OAUTH_GATEWAY_URL.trim().trimEnd('/')
+        val apiBaseUrl = if (gateway.isNotBlank()) {
+            "$gateway/api/"
+        } else {
+            BuildConfig.KICK_API_BASE_URL.ensureTrailingSlash()
+        }
         return Retrofit.Builder()
-            .baseUrl(BuildConfig.KICK_API_BASE_URL.ensureTrailingSlash())
+            .baseUrl(apiBaseUrl)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

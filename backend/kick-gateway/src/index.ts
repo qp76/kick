@@ -217,6 +217,8 @@ export default {
       const upstream = new URL(KICK_API + upstreamPath + url.search);
       const headers = new Headers(request.headers);
       headers.set("authorization", auth);
+      if (!headers.has("origin")) headers.set("origin", "https://kick.com");
+      if (!headers.has("referer")) headers.set("referer", "https://kick.com/");
       headers.delete("host");
       const response = await fetch(upstream, {
         method: request.method,

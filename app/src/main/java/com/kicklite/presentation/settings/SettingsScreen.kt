@@ -51,6 +51,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val apiConfigured by authViewModel.configured.collectAsState()
     var tokenInput by remember { mutableStateOf("") }
+    var loginMessage by remember { mutableStateOf<String?>(null) }
     val themeOptions = listOf(
         ThemePreference.AUTO,
         ThemePreference.LIGHT,
@@ -83,38 +84,52 @@ fun SettingsScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("KICK API", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        if (apiConfigured) "Official KICK API token configured on this device." else "For testing, you can provide an access token issued by your KICK app/backend.",
+                        if (apiConfigured) "KICK access token is stored on this device." else "Sign in with KICK to connect your account, or provide a development access token.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    loginMessage?.let {
+                        Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                    }
                     OutlinedTextField(
                         value = tokenInput,
                         onValueChange = { tokenInput = it },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         label = { Text("Access token") },
-                        supportingText = { Text("Do not commit tokens to GitHub. A backend/OAuth flow is recommended for production.") }
+                        supportingText = { Text("Never commit access tokens or client secrets to GitHub.") }
                     )
                     Button(
-                        onClick = { authViewModel.startLogin(context) },
+                        onClick = {
+                            loginMessage = if (authViewModel.startLogin(context)) {
+                                "Opening Kick sign-in… Complete authorization in your browser and return to the app."
+                            } else {
+                                "Login could not start. Check the KICK_OAUTH_GATEWAY_URL build setting."
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth()
                     ) { Text("Log in with KICK") }
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(
-                            onClick = { authViewModel.saveToken(tokenInput); tokenInput = "" },
+                            onClick = {
+                                authViewModel.saveToken(tokenInput)
+                                tokenInput = ""
+                                loginMessage = "Access token saved on this device."
+                            },
                             enabled = tokenInput.isNotBlank()
                         ) { Text("Save token") }
                         if (apiConfigured) {
-                            androidx.compose.material3.OutlinedButton(onClick = { authViewModel.clearToken() }) { Text("Clear") }
+                            androidx.compose.material3.OutlinedButton(onClick = {
+                                authViewModel.clearToken()
+                                loginMessage = "Access token cleared."
+                            }) { Text("Clear") }
                         }
                     }
                 }
             }
 
             item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         text = stringResource(R.string.settings_theme_section_title),
                         style = MaterialTheme.typography.titleMedium
@@ -194,10 +209,7 @@ private fun ThemeOptionRow(
             .fillMaxWidth()
             .clickable(role = Role.RadioButton, onClick = onSelected),
         headlineContent = {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge
-            )
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
         },
         supportingContent = {
             Text(
@@ -207,10 +219,7 @@ private fun ThemeOptionRow(
             )
         },
         trailingContent = {
-            RadioButton(
-                selected = isSelected,
-                onClick = null
-            )
+            RadioButton(selected = isSelected, onClick = null)
         }
     )
 }

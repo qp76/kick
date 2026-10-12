@@ -48,6 +48,7 @@ class PlayerViewModel @Inject constructor(
     val state: StateFlow<PlayerState> = _state.asStateFlow()
 
     private var chatRefreshJob: Job? = null
+    private var chatHistoryJob: Job? = null
     private var liveStatusJob: Job? = null
     private var currentChannelId: Long? = null
     private var isFirstChatLoad = true
@@ -210,7 +211,7 @@ class PlayerViewModel @Inject constructor(
     private fun ensureSocket() {
         val room = chatroomId ?: return
         if (socketJob != null) return
-        socketJob = viewModelScope.launch {
+        val job = viewModelScope.launch {
             launch {
                 chatSocket.connect(room).collect { ev ->
                     when (ev) {
@@ -227,9 +228,17 @@ class PlayerViewModel @Inject constructor(
                 if (batch.isNotEmpty()) appendChatMessages(batch)
             }
         }
+        socketJob = job
+        // If the socket collector exits unexpectedly, allow a later history refresh to reconnect it.
+        job.invokeOnCompletion {
+            socketConnected = false
+            if (socketJob === job) socketJob = null
+        }
     }
 
     private fun resetChatState() {
+        chatHistoryJob?.cancel()
+        chatHistoryJob = null
         stopSocket()
         chatroomId = null
         isFirstChatLoad = true
@@ -238,7 +247,10 @@ class PlayerViewModel @Inject constructor(
     }
     
     private fun loadChatHistory(channelId: Long) {
-        viewModelScope.launch {
+        // Never stack slow history requests; a stalled request must not create an ever-growing
+        // queue of refresh jobs and make the chat appear frozen.
+        if (chatHistoryJob?.isActive == true) return
+        chatHistoryJob = viewModelScope.launch {
             getChatHistoryUseCase(channelId).collect { resource ->
                 when (resource) {
                     is Resource.Success -> {
@@ -479,8 +491,10 @@ class PlayerViewModel @Inject constructor(
         
         chatRefreshJob = viewModelScope.launch {
             while (coroutineContext[Job]?.isActive == true && currentChannelId == channelId) {
-                delay(1000)
-                if (!socketConnected) loadChatHistory(channelId)
+                // Keep a low-frequency history fallback running even when the socket claims to
+                // be connected: some mobile networks silently stall long-lived WebSockets.
+                delay(5000)
+                loadChatHistory(channelId)
             }
         }
     }

@@ -3,6 +3,7 @@ package com.kicklite.data.remote
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import com.kicklite.BuildConfig
 import com.kicklite.data.local.KickTokenStore
 import okhttp3.MediaType.Companion.toMediaType
@@ -22,13 +23,19 @@ class KickOAuthManager @Inject constructor(
     private val tokenStore: KickTokenStore
 ) {
     private val prefsName = "kick_oauth"
+    private val tag = "KickOAuth"
 
     fun startLogin(context: Context): Boolean {
         val gateway = BuildConfig.KICK_OAUTH_GATEWAY_URL.trim().trimEnd('/')
-        if (gateway.isBlank()) return false
+        if (gateway.isBlank()) {
+            Log.e(tag, "Login cannot start: KICK_OAUTH_GATEWAY_URL is empty")
+            return false
+        }
 
         val verifier = randomUrlString(48)
-        val challenge = base64Url(MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII)))
+        val challenge = base64Url(
+            MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray(Charsets.US_ASCII))
+        )
         val state = randomUrlString(32)
         context.getSharedPreferences(prefsName, Context.MODE_PRIVATE).edit()
             .putString("verifier", verifier)
@@ -38,16 +45,24 @@ class KickOAuthManager @Inject constructor(
         val body = JSONObject().put("state", state).put("code_verifier", verifier)
             .toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder().url("$gateway/oauth/pkce").post(body).build()
+
         Thread {
-            runCatching {
+            try {
                 client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@use
+                    if (!response.isSuccessful) {
+                        Log.e(tag, "Could not register PKCE verifier: HTTP ${response.code}")
+                        return@use
+                    }
                     val authorize = Uri.parse("$gateway/oauth/start").buildUpon()
                         .appendQueryParameter("state", state)
                         .appendQueryParameter("code_challenge", challenge)
                         .build()
-                    context.startActivity(Intent(Intent.ACTION_VIEW, authorize).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    context.startActivity(
+                        Intent(Intent.ACTION_VIEW, authorize).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    )
                 }
+            } catch (e: Exception) {
+                Log.e(tag, "Could not start OAuth login", e)
             }
         }.start()
         return true
@@ -55,25 +70,56 @@ class KickOAuthManager @Inject constructor(
 
     fun handleCallback(context: Context, uri: Uri): Boolean {
         if (uri.scheme != "kicklite" || uri.host != "oauth" || uri.path != "/callback") return false
-        val code = uri.getQueryParameter("code") ?: return false
-        val state = uri.getQueryParameter("state") ?: return false
         val prefs = context.getSharedPreferences(prefsName, Context.MODE_PRIVATE)
-        if (prefs.getString("state", null) != state) return false
-        val gateway = BuildConfig.KICK_OAUTH_GATEWAY_URL.trim().trimEnd('/')
-        if (gateway.isBlank()) return false
+        val state = uri.getQueryParameter("state")
+        val providerError = uri.getQueryParameter("error")
+        if (providerError != null) {
+            Log.e(tag, "Kick authorization was declined/failed: $providerError; ${uri.getQueryParameter("error_description").orEmpty()}")
+            if (state != null && prefs.getString("state", null) == state) prefs.edit().clear().apply()
+            return true
+        }
 
-        val body = JSONObject().put("code", code).put("state", state).toString()
-            .toRequestBody("application/json".toMediaType())
+        val code = uri.getQueryParameter("code") ?: run {
+            Log.e(tag, "OAuth callback has no authorization code")
+            return false
+        }
+        if (state.isNullOrBlank() || prefs.getString("state", null) != state) {
+            Log.e(tag, "OAuth callback rejected: missing or mismatched state")
+            return false
+        }
+
+        val gateway = BuildConfig.KICK_OAUTH_GATEWAY_URL.trim().trimEnd('/')
+        if (gateway.isBlank()) {
+            Log.e(tag, "OAuth callback cannot be exchanged: gateway URL is empty")
+            return false
+        }
+
+        val body = JSONObject().put("code", code).put("state", state)
+            .toString().toRequestBody("application/json".toMediaType())
         val request = Request.Builder().url("$gateway/oauth/exchange").post(body).build()
+
         Thread {
-            runCatching {
+            try {
                 client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@use
-                    val json = JSONObject(response.body?.string().orEmpty())
+                    val responseText = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) {
+                        Log.e(tag, "OAuth code exchange failed: HTTP ${response.code}: ${responseText.take(300)}")
+                        return@use
+                    }
+
+                    val json = JSONObject(responseText)
                     val accessToken = json.optString("access_token")
-                    if (accessToken.isNotBlank()) tokenStore.saveAccessToken(accessToken)
+                    if (accessToken.isBlank()) {
+                        Log.e(tag, "OAuth exchange response did not contain an access_token")
+                        return@use
+                    }
+
+                    tokenStore.saveAccessToken(accessToken)
                     prefs.edit().clear().apply()
+                    Log.i(tag, "Kick login completed; access token saved")
                 }
+            } catch (e: Exception) {
+                Log.e(tag, "OAuth code exchange failed unexpectedly", e)
             }
         }.start()
         return true
@@ -85,5 +131,6 @@ class KickOAuthManager @Inject constructor(
         return base64Url(data)
     }
 
-    private fun base64Url(data: ByteArray): String = Base64.getUrlEncoder().withoutPadding().encodeToString(data)
+    private fun base64Url(data: ByteArray): String =
+        Base64.getUrlEncoder().withoutPadding().encodeToString(data)
 }

@@ -337,7 +337,10 @@ class MainActivity : ComponentActivity() {
                                         
                                         // Navigation Bar - only show on main screens
                                         if (isMainScreen) {
-                                            NavigationBar(\n                                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),\n                                                tonalElevation = 0.dp\n                                            ) {
+                                            NavigationBar(
+                                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                                                tonalElevation = 0.dp
+                                            ) {
                                         NavigationBarItem(
                                             icon = { 
                                                 Icon(Icons.Default.Home, contentDescription = stringResource(R.string.nav_home)) 

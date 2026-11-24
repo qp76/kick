@@ -1,6 +1,8 @@
 package com.kicklite.presentation.player.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -55,6 +57,8 @@ fun VideoPlayerControls(
                     .fillMaxWidth()
                     .padding(16.dp)
                     .safeDrawingPadding()
+                    .background(Color.Black.copy(alpha = 0.42f), RoundedCornerShape(22.dp))
+                    .padding(horizontal = 6.dp)
                     .align(Alignment.TopStart),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -191,6 +195,8 @@ fun VideoPlayerControls(
                         .fillMaxWidth()
                         .padding(16.dp)
                         .safeDrawingPadding()
+                        .background(Color.Black.copy(alpha = 0.46f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
                         .align(Alignment.BottomCenter),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically

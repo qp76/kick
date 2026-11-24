@@ -347,6 +347,13 @@ class MainActivity : ComponentActivity() {
                                             },
                                             label = { Text(stringResource(R.string.nav_home)) },
                                             selected = selectedTab == "home",
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                            ),
                                             onClick = {
                                                 Log.d("Navigation", "Home tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
                                                 if (selectedTab != "home") {
@@ -365,6 +372,13 @@ class MainActivity : ComponentActivity() {
                                             },
                                             label = { Text(stringResource(R.string.nav_search)) },
                                             selected = selectedTab == "search",
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                            ),
                                             onClick = {
                                                 Log.d("Navigation", "Search tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
                                                 if (selectedTab != "search") {
@@ -383,6 +397,13 @@ class MainActivity : ComponentActivity() {
                                             },
                                             label = { Text(stringResource(R.string.nav_following)) },
                                             selected = selectedTab == "following",
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                            ),
                                             onClick = {
                                                 Log.d("Navigation", "Following tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
                                                 if (selectedTab != "following") {

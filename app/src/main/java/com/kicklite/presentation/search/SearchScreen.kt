@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.kicklite.R
+import com.kicklite.designsystem.components.KdsSectionHeader
 import com.kicklite.domain.model.ChannelSearchResult
 import com.kicklite.domain.model.CategorySearchResult
 import com.kicklite.domain.model.TagSearchResult

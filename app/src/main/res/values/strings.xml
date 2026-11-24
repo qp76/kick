@@ -133,4 +133,6 @@
     <string name="nav_home">Home</string>
     <string name="nav_search">Search</string>
     <string name="nav_following">Following</string>
+    <string name="settings_account_section_title">Account</string>
+    <string name="settings_playback_data_section_title">Playback &amp; data</string>
 </resources>

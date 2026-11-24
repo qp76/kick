@@ -34,6 +34,7 @@ import com.kicklite.domain.model.ChannelDetails
 import com.kicklite.domain.model.ChannelVideo
 import com.kicklite.domain.model.ChannelClip
 import com.kicklite.R
+import com.kicklite.designsystem.components.KdsSegmentedControl
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChannelProfileScreen(
@@ -143,18 +144,15 @@ fun ChannelProfileScreen(
             // Tabs for Videos / Clips
             item {
                 Column {
-                    TabRow(selectedTabIndex = selectedTab) {
-                        Tab(
-                            selected = selectedTab == 0,
-                            onClick = { selectedTab = 0 },
-                            text = { Text(stringResource(R.string.channel_tab_videos)) }
-                        )
-                        Tab(
-                            selected = selectedTab == 1,
-                            onClick = { selectedTab = 1 },
-                            text = { Text(stringResource(R.string.channel_tab_clips)) }
-                        )
-                    }
+                    KdsSegmentedControl(
+                        options = listOf(
+                            stringResource(R.string.channel_tab_videos),
+                            stringResource(R.string.channel_tab_clips)
+                        ),
+                        selectedIndex = selectedTab,
+                        onSelectionChanged = { selectedTab = it },
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                     // Quick filter chips shown only for Clips tab
                     if (selectedTab == 1) {
                         ClipsFilterBar(

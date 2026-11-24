@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.kicklite.R
+import com.kicklite.designsystem.components.KdsSectionHeader
+import com.kicklite.designsystem.components.KdsSurfaceCard
 import com.kicklite.domain.model.ChannelSearchResult
 import com.kicklite.domain.model.CategorySearchResult
 import com.kicklite.domain.model.TagSearchResult
@@ -197,9 +199,8 @@ fun ChannelSearchItem(
     channel: ChannelSearchResult,
     onClick: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+    KdsSurfaceCard(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
@@ -285,9 +286,8 @@ fun CategorySearchItem(
     category: CategorySearchResult,
     onClick: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+    KdsSurfaceCard(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier
@@ -350,7 +350,7 @@ fun CategorySearchItem(
 fun TagSearchItem(
     tag: TagSearchResult
 ) {
-    Card(
+    KdsSurfaceCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(

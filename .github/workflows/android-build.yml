@@ -3,9 +3,11 @@ name: Android build
 on:
   pull_request:
   push:
-    branches:
-      - main
   workflow_dispatch:
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -13,11 +15,12 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       KICK_API_BASE_URL: https://api.kick.com/
       KICK_OAUTH_GATEWAY_URL: https://kick.boy82102.workers.dev
       KICK_CLIENT_ID: ${{ vars.KICK_CLIENT_ID }}
+      ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
@@ -28,23 +31,38 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
+      # GitHub's Ubuntu runner already contains Android command-line tools.
+      # Avoid android-actions/setup-android: its legacy "tools" install fails
+      # against current Google SDK repositories.
       - name: Install Android SDK packages
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0"
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.2'
 
-      - name: Build debug APK
-        run: gradle --no-daemon clean assembleDebug
+      - name: Run unit tests
+        run: gradle --no-daemon testDebugUnitTest
 
-      - name: Upload debug APK
+      - name: Build debug APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Build optimized release APK
+        env:
+          ENABLE_R8: 'true'
+        run: gradle --no-daemon assembleRelease
+
+      - name: Upload APKs
         uses: actions/upload-artifact@v4
         with:
-          name: kick-lite-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: kick-lite-apks
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error

@@ -21,6 +21,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.runtime.collectAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
@@ -29,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -331,13 +337,23 @@ class MainActivity : ComponentActivity() {
                                         
                                         // Navigation Bar - only show on main screens
                                         if (isMainScreen) {
-                                            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                                            NavigationBar(
+                                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                                                tonalElevation = 0.dp
+                                            ) {
                                         NavigationBarItem(
                                             icon = { 
                                                 Icon(Icons.Default.Home, contentDescription = stringResource(R.string.nav_home)) 
                                             },
                                             label = { Text(stringResource(R.string.nav_home)) },
                                             selected = selectedTab == "home",
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                            ),
                                             onClick = {
                                                 Log.d("Navigation", "Home tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
                                                 if (selectedTab != "home") {
@@ -356,6 +372,13 @@ class MainActivity : ComponentActivity() {
                                             },
                                             label = { Text(stringResource(R.string.nav_search)) },
                                             selected = selectedTab == "search",
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                            ),
                                             onClick = {
                                                 Log.d("Navigation", "Search tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
                                                 if (selectedTab != "search") {
@@ -374,6 +397,13 @@ class MainActivity : ComponentActivity() {
                                             },
                                             label = { Text(stringResource(R.string.nav_following)) },
                                             selected = selectedTab == "following",
+                                            colors = NavigationBarItemDefaults.colors(
+                                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                                            ),
                                             onClick = {
                                                 Log.d("Navigation", "Following tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
                                                 if (selectedTab != "following") {
@@ -395,7 +425,11 @@ class MainActivity : ComponentActivity() {
                         NavHost(
                             navController = navController,
                             startDestination = "home",
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
+                            enterTransition = { fadeIn(tween(180)) + slideInHorizontally(tween(180)) { it / 18 } },
+                            exitTransition = { fadeOut(tween(120)) + slideOutHorizontally(tween(120)) { -it / 24 } },
+                            popEnterTransition = { fadeIn(tween(180)) + slideInHorizontally(tween(180)) { -it / 24 } },
+                            popExitTransition = { fadeOut(tween(120)) + slideOutHorizontally(tween(120)) { it / 18 } }
                         ) {
                             composable("home") {
                                 HomeScreen(

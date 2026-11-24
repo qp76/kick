@@ -50,6 +50,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.kicklite.designsystem.components.KdsSectionHeader
+import com.kicklite.designsystem.components.KdsSurfaceCard
 import com.kicklite.domain.common.Resource
 import com.kicklite.domain.model.LiveStream
 import com.kicklite.domain.model.StreamCategory
@@ -103,7 +105,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("KICK", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black), color = Color(0xFF53FF00))
+                Text("KICK", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black), color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { viewModel.toggleLanguageFilter() }) {
                     Icon(Icons.Default.Language, contentDescription = "Language", tint = MaterialTheme.colorScheme.onSurface)
@@ -192,12 +194,12 @@ fun HomeScreen(
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, Modifier.padding(horizontal = 18.dp), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+    KdsSectionHeader(title = text, modifier = Modifier.padding(horizontal = 18.dp))
 }
 
 @Composable
 private fun FeaturedCard(stream: LiveStream, onClick: () -> Unit, onChannelClick: (String) -> Unit) {
-    Card(Modifier.width(330.dp).clickable(onClick = onClick), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    KdsSurfaceCard(Modifier.width(330.dp).clickable(onClick = onClick)) {
         Box {
             AsyncImage(model = stream.thumbnail?.src, contentDescription = stream.title, modifier = Modifier.fillMaxWidth().aspectRatio(1.65f), contentScale = ContentScale.Crop)
             ViewerPill(stream.viewerCount, Modifier.align(Alignment.TopStart).padding(12.dp))

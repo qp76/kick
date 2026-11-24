@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kicklite.R
+import com.kicklite.designsystem.components.KdsLiveBadge
+import com.kicklite.designsystem.components.KdsSectionHeader
 import com.kicklite.domain.model.LiveStream
 import com.kicklite.presentation.home.components.StreamItem
 import com.kicklite.presentation.following.components.OfflineChannelItem
@@ -126,26 +128,10 @@ fun FollowingScreen(
                         // Live streams section
                         if (state.liveStreams.isNotEmpty()) {
                             item {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
+                                KdsLiveBadge(
+                                    label = stringResource(R.string.live_now_count, state.liveStreams.size),
                                     modifier = Modifier.padding(vertical = 8.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .background(
-                                                MaterialTheme.colorScheme.primary,
-                                                shape = CircleShape
-                                            )
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = stringResource(R.string.live_now_count, state.liveStreams.size),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
+                                )
                             }
 
                             items(state.liveStreams) { stream ->
@@ -160,26 +146,10 @@ fun FollowingScreen(
                         // Offline channels section
                         if (state.offlineChannels.isNotEmpty()) {
                             item {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
+                                KdsSectionHeader(
+                                    title = stringResource(R.string.offline_count, state.offlineChannels.size),
                                     modifier = Modifier.padding(vertical = 8.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(12.dp)
-                                            .background(
-                                                androidx.compose.ui.graphics.Color.Gray,
-                                                shape = CircleShape
-                                            )
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = stringResource(R.string.offline_count, state.offlineChannels.size),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = androidx.compose.ui.graphics.Color.Gray
-                                    )
-                                }
+                                )
                             }
 
                             items(state.offlineChannels) { channel ->

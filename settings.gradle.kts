@@ -14,4 +14,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "kick-lite"
-include(":app")
+include(":app", ":designsystem")

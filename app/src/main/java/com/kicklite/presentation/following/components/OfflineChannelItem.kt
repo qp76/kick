@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.kicklite.R
+import com.kicklite.designsystem.components.KdsSurfaceCard
 import com.kicklite.domain.model.ChannelDetails
 import com.kicklite.ui.theme.KickGreen
 
@@ -30,12 +31,10 @@ fun OfflineChannelItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    KdsSurfaceCard(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            .clickable { onClick() }
     ) {
         Row(
             modifier = Modifier

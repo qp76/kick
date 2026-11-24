@@ -88,7 +88,7 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp)
         ) {
             item {
-                KdsSectionHeader(title = "Account")
+                KdsSectionHeader(title = stringResource(R.string.settings_account_section_title))
                 KdsSurfaceCard(Modifier.fillMaxWidth()) {
                     Column(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -172,7 +172,7 @@ fun SettingsScreen(
             }
 
             item {
-                KdsSectionHeader(title = "Playback & data")
+                KdsSectionHeader(title = stringResource(R.string.settings_playback_data_section_title))
                 KdsSurfaceCard(Modifier.fillMaxWidth()) {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp)) {
                         PreferenceSwitchRow(

@@ -1,25 +1,20 @@
 package com.kicklite.ui.theme
 
 import androidx.compose.ui.graphics.Color
+import com.kicklite.designsystem.tokens.KdsColor
 
-// Kick-Lite brand palette
-val KickGreen = Color(0xFF53FC18)
-val KickGreenDim = Color(0xFF3DBF10)
-val KickGreenDeep = Color(0xFF1F7A00)
-
-// Dark surfaces (near-black with a very slight green tint)
-val KickDark = Color(0xFF0B0E0C)
-val KickGray = Color(0xFF151A17)
-val KickSurfaceHigh = Color(0xFF1D2420)
-val KickOutline = Color(0xFF34403A)
-val KickTextPrimary = Color(0xFFEAF2EC)
-val KickTextSecondary = Color(0xFF9DAAA2)
-
-// Light surfaces
-val KickLightBackground = Color(0xFFF6FAF7)
-val KickLightSurface = Color(0xFFFFFFFF)
-val KickLightSurfaceVariant = Color(0xFFE6EEE8)
-val KickLightText = Color(0xFF0F1512)
-
-// Live / error accent
-val KickLiveRed = Color(0xFFFF4D4D)
+// Compatibility aliases: existing screens keep their imports while tokens live in KDS.
+val KickGreen = KdsColor.Brand
+val KickGreenDim = KdsColor.BrandPressed
+val KickGreenDeep = KdsColor.BrandContainer
+val KickDark = KdsColor.DarkBackground
+val KickGray = KdsColor.DarkSurface
+val KickSurfaceHigh = KdsColor.DarkSurfaceElevated
+val KickOutline = KdsColor.DarkOutline
+val KickTextPrimary = KdsColor.DarkText
+val KickTextSecondary = KdsColor.DarkTextMuted
+val KickLightBackground = KdsColor.LightBackground
+val KickLightSurface = KdsColor.LightSurface
+val KickLightSurfaceVariant = KdsColor.LightSurfaceVariant
+val KickLightText = KdsColor.LightText
+val KickLiveRed = KdsColor.Live

@@ -181,7 +181,7 @@ fun SettingsScreen(
                             checked = dataSaver,
                             onCheckedChange = { dataSaverVm.prefs.setEnabled(it) }
                         )
-                        androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f))
+                        androidx.compose.material3.Divider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.22f))
                         PreferenceSwitchRow(
                             title = "Live previews",
                             description = "Plays a muted preview on Home when a stream rests on screen. Off while Data saver is on.",

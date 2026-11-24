@@ -193,7 +193,7 @@ fun HomeScreen(
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, Modifier.padding(horizontal = 18.dp), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+    KdsSectionHeader(title = text, modifier = Modifier.padding(horizontal = 18.dp))
 }
 
 @Composable

@@ -2,6 +2,7 @@ package com.kicklite.presentation.player.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -175,6 +176,7 @@ fun VideoPlayerControls(
                         onClick = onPlayPause,
                         modifier = Modifier
                             .size(80.dp)
+                            .background(Color.Black.copy(alpha = 0.46f), CircleShape)
                             .align(Alignment.Center)
                     ) {
                         Icon(

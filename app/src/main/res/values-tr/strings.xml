@@ -133,4 +133,6 @@
     <string name="nav_home">Ana sayfa</string>
     <string name="nav_search">Ara</string>
     <string name="nav_following">Takip edilenler</string>
+    <string name="settings_account_section_title">Hesap</string>
+    <string name="settings_playback_data_section_title">Oynatma ve veri</string>
 </resources>

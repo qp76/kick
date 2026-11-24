@@ -50,6 +50,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.kicklite.designsystem.components.KdsSectionHeader
 import com.kicklite.domain.common.Resource
 import com.kicklite.domain.model.LiveStream
 import com.kicklite.domain.model.StreamCategory
@@ -103,7 +104,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("KICK", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black), color = Color(0xFF53FF00))
+                Text("KICK", style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black), color = MaterialTheme.colorScheme.primary)
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { viewModel.toggleLanguageFilter() }) {
                     Icon(Icons.Default.Language, contentDescription = "Language", tint = MaterialTheme.colorScheme.onSurface)

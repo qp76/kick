@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.kicklite.designsystem.components.KdsSectionHeader
+import com.kicklite.designsystem.components.KdsSurfaceCard
 import com.kicklite.domain.common.Resource
 import com.kicklite.domain.model.LiveStream
 import com.kicklite.domain.model.StreamCategory
@@ -198,7 +199,7 @@ private fun SectionTitle(text: String) {
 
 @Composable
 private fun FeaturedCard(stream: LiveStream, onClick: () -> Unit, onChannelClick: (String) -> Unit) {
-    Card(Modifier.width(330.dp).clickable(onClick = onClick), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+    KdsSurfaceCard(Modifier.width(330.dp).clickable(onClick = onClick)) {
         Box {
             AsyncImage(model = stream.thumbnail?.src, contentDescription = stream.title, modifier = Modifier.fillMaxWidth().aspectRatio(1.65f), contentScale = ContentScale.Crop)
             ViewerPill(stream.viewerCount, Modifier.align(Alignment.TopStart).padding(12.dp))

@@ -12,6 +12,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
+import com.kicklite.designsystem.performKdsClickHaptic
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -23,7 +25,8 @@ fun KdsSegmentedControl(
     selectedIndex: Int,
     onSelectionChanged: (Int) -> Unit,
     modifier: Modifier = Modifier
-) {
+ ) {
+    val view = LocalView.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -44,7 +47,10 @@ fun KdsSegmentedControl(
                         if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f)
                         else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0f)
                     )
-                    .clickable { onSelectionChanged(index) }
+                    .clickable {
+                        view.performKdsClickHaptic()
+                        onSelectionChanged(index)
+                    }
                     .padding(horizontal = 8.dp, vertical = 11.dp),
                 color = if (selected) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant,

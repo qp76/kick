@@ -247,6 +247,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         var selectedTab by remember { mutableStateOf("home") }
+                    var isKickChatFocused by remember { mutableStateOf(false) }
                     
                     // Update selected tab based on current route
                     LaunchedEffect(currentRoute) {
@@ -277,7 +278,7 @@ class MainActivity : ComponentActivity() {
                     val isPlayerScreen = currentRoute == "player"
                     val isChannelProfileScreen = currentRoute?.startsWith("channel_profile") == true
                     val shouldShowMiniPlayer = isMiniPlayerVisible && miniPlayerContent != null && !isPlayerScreen && !isPipMode
-                    val shouldShowBottomBar = !isPipMode && (isMainScreen || (shouldShowMiniPlayer && (isMainScreen || isChannelProfileScreen)))
+                    val shouldShowBottomBar = !isPipMode && !isKickChatFocused && (isMainScreen || (shouldShowMiniPlayer && (isMainScreen || isChannelProfileScreen)))
                     
                     // Debug messages
                     println("DEBUG: Route='$currentRoute', isMainScreen=$isMainScreen, isPlayerScreen=$isPlayerScreen, isChannelProfile=$isChannelProfileScreen, isMiniPlayerVisible=$isMiniPlayerVisible, hasContent=${miniPlayerContent != null}, shouldShowMiniPlayer=$shouldShowMiniPlayer, shouldShowBottomBar=$shouldShowBottomBar, isPipMode=$isPipMode")
@@ -372,9 +373,7 @@ class MainActivity : ComponentActivity() {
                                         sharedDataViewModel.setSelectedStream(stream)
                                         navController.navigate("player")
                                     },
-                                    onChatFocusChanged = { focused ->
-                                        if (focused) selectedTab = "home"
-                                    },
+                                    onChatFocusChanged = { focused -> isKickChatFocused = focused },
                                     onChannelClick = { username: String ->
                                         navController.navigate("channel_profile/$username")
                                     },

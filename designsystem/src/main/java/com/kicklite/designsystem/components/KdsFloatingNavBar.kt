@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,7 +43,8 @@ fun KdsFloatingNavBar(
     val items = listOf(
         NavItem("home", "Home", Icons.Default.Home),
         NavItem("search", "Search", Icons.Default.Search),
-        NavItem("following", "Following", Icons.Default.Favorite)
+        NavItem("following", "Following", Icons.Default.Favorite),
+        NavItem("settings", "Settings", Icons.Default.Settings)
     )
 
     Row(

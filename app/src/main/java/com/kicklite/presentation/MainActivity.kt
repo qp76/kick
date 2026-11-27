@@ -374,6 +374,9 @@ class MainActivity : ComponentActivity() {
                                         navController.navigate("player")
                                     },
                                     onChatFocusChanged = { focused -> isKickChatFocused = focused },
+                                    bottomOverlayHeight = if (shouldShowBottomBar) {
+                                        if (shouldShowMiniPlayer) 156.dp else 84.dp
+                                    } else 0.dp,
                                     onChannelClick = { username: String ->
                                         navController.navigate("channel_profile/$username")
                                     },

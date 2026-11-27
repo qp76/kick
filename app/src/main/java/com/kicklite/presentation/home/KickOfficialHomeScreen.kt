@@ -229,9 +229,7 @@ private val KICK_NATIVE_VIDEO_GUARD = """
   if (window.__kickNativeVideoGuard) return;
   window.__kickNativeVideoGuard = true;
   try {
-    const nativePlay = HTMLMediaElement.prototype.play;
     HTMLMediaElement.prototype.play = function() {
-      try { nativePlay.call(this).then(() => this.pause()).catch(() => {}); } catch (_) {}
       return Promise.reject(new DOMException('Use the native player', 'NotAllowedError'));
     };
   } catch (_) {}

@@ -255,6 +255,7 @@ class MainActivity : ComponentActivity() {
                             "home" -> selectedTab = "home"
                             "following" -> selectedTab = "following"
                             "search" -> selectedTab = "search"
+                            "settings" -> selectedTab = "settings"
                             // Don't change selectedTab for player or other screens
                         }
                     }
@@ -272,7 +273,7 @@ class MainActivity : ComponentActivity() {
                         }
                     
                     // Determine if we should show bottom bar
-                    val isMainScreen = currentRoute in listOf("home", "following", "search")
+                    val isMainScreen = currentRoute in listOf("home", "following", "search", "settings")
                     val isPlayerScreen = currentRoute == "player"
                     val isChannelProfileScreen = currentRoute?.startsWith("channel_profile") == true
                     val shouldShowMiniPlayer = isMiniPlayerVisible && miniPlayerContent != null && !isPlayerScreen && !isPipMode
@@ -371,8 +372,8 @@ class MainActivity : ComponentActivity() {
                                         sharedDataViewModel.setSelectedStream(stream)
                                         navController.navigate("player")
                                     },
-                                    onSettingsClick = {
-                                        navController.navigate("settings")
+                                    onChatFocusChanged = { focused ->
+                                        if (focused) selectedTab = "home"
                                     },
                                     onChannelClick = { username: String ->
                                         navController.navigate("channel_profile/$username")

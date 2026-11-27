@@ -52,6 +52,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kicklite.presentation.home.HomeScreen
+import com.kicklite.designsystem.components.KdsFloatingNavBar
 import com.kicklite.presentation.player.PlayerScreenWithStream
 import com.kicklite.presentation.player.PipModeManager
 import com.kicklite.presentation.following.FollowingScreen
@@ -337,86 +338,19 @@ class MainActivity : ComponentActivity() {
                                         
                                         // Navigation Bar - only show on main screens
                                         if (isMainScreen) {
-                                            NavigationBar(
-                                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                                                tonalElevation = 0.dp
-                                            ) {
-                                        NavigationBarItem(
-                                            icon = { 
-                                                Icon(Icons.Default.Home, contentDescription = stringResource(R.string.nav_home)) 
-                                            },
-                                            label = { Text(stringResource(R.string.nav_home)) },
-                                            selected = selectedTab == "home",
-                                            colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                                            ),
-                                            onClick = {
-                                                Log.d("Navigation", "Home tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
-                                                if (selectedTab != "home") {
-                                                    selectedTab = "home"
-                                                    navController.navigate("home") {
-                                                        popUpTo("home") { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
+                                            KdsFloatingNavBar(
+                                                selectedTab = selectedTab,
+                                                onTabSelected = { destination ->
+                                                    if (selectedTab != destination) {
+                                                        selectedTab = destination
+                                                        navController.navigate(destination) {
+                                                            popUpTo("home") { saveState = true }
+                                                            launchSingleTop = true
+                                                            restoreState = true
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        )
-                                        NavigationBarItem(
-                                            icon = { 
-                                                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.nav_search)) 
-                                            },
-                                            label = { Text(stringResource(R.string.nav_search)) },
-                                            selected = selectedTab == "search",
-                                            colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                                            ),
-                                            onClick = {
-                                                Log.d("Navigation", "Search tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
-                                                if (selectedTab != "search") {
-                                                    selectedTab = "search"
-                                                    navController.navigate("search") {
-                                                        popUpTo("home") { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            }
-                                        )
-                                        NavigationBarItem(
-                                            icon = { 
-                                                Icon(Icons.Default.Favorite, contentDescription = stringResource(R.string.nav_following)) 
-                                            },
-                                            label = { Text(stringResource(R.string.nav_following)) },
-                                            selected = selectedTab == "following",
-                                            colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                                            ),
-                                            onClick = {
-                                                Log.d("Navigation", "Following tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
-                                                if (selectedTab != "following") {
-                                                    selectedTab = "following"
-                                                    navController.navigate("following") {
-                                                        popUpTo("home") { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            }
-                                        )
-                                    }
+                                            )
                                         }
                                         }
                                     }

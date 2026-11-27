@@ -42,6 +42,11 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".presentation.KickWebActivity"
+            android:exported="false"
+            android:configChanges="screenSize|orientation|keyboardHidden"
+            android:theme="@style/Theme.KickLite" />
+        <activity
             android:name=".presentation.ExpandNowPlayingActivity"
             android:exported="false"
             android:supportsPictureInPicture="false"

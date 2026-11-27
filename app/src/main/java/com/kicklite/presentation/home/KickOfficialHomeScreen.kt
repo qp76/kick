@@ -228,9 +228,16 @@ private val KICK_NATIVE_VIDEO_GUARD = """
 (function() {
   if (window.__kickNativeVideoGuard) return;
   window.__kickNativeVideoGuard = true;
+  try {
+    const nativePlay = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function() {
+      try { nativePlay.call(this).then(() => this.pause()).catch(() => {}); } catch (_) {}
+      return Promise.reject(new DOMException('Use the native player', 'NotAllowedError'));
+    };
+  } catch (_) {}
   const block = function() {
     document.querySelectorAll('video').forEach(video => {
-      try { video.pause(); video.removeAttribute('autoplay'); } catch (_) {}
+      try { video.pause(); video.removeAttribute('autoplay'); video.controls = false; } catch (_) {}
     });
   };
   block();

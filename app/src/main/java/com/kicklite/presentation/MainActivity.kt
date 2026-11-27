@@ -51,7 +51,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.kicklite.presentation.home.HomeScreen
+import com.kicklite.presentation.home.KickOfficialHomeScreen
+import com.kicklite.designsystem.components.KdsFloatingNavBar
 import com.kicklite.presentation.player.PlayerScreenWithStream
 import com.kicklite.presentation.player.PipModeManager
 import com.kicklite.presentation.following.FollowingScreen
@@ -246,6 +247,7 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         var selectedTab by remember { mutableStateOf("home") }
+                    var isKickChatFocused by remember { mutableStateOf(false) }
                     
                     // Update selected tab based on current route
                     LaunchedEffect(currentRoute) {
@@ -254,6 +256,7 @@ class MainActivity : ComponentActivity() {
                             "home" -> selectedTab = "home"
                             "following" -> selectedTab = "following"
                             "search" -> selectedTab = "search"
+                            "settings" -> selectedTab = "settings"
                             // Don't change selectedTab for player or other screens
                         }
                     }
@@ -271,11 +274,11 @@ class MainActivity : ComponentActivity() {
                         }
                     
                     // Determine if we should show bottom bar
-                    val isMainScreen = currentRoute in listOf("home", "following", "search")
+                    val isMainScreen = currentRoute in listOf("home", "following", "search", "settings")
                     val isPlayerScreen = currentRoute == "player"
                     val isChannelProfileScreen = currentRoute?.startsWith("channel_profile") == true
                     val shouldShowMiniPlayer = isMiniPlayerVisible && miniPlayerContent != null && !isPlayerScreen && !isPipMode
-                    val shouldShowBottomBar = !isPipMode && (isMainScreen || (shouldShowMiniPlayer && (isMainScreen || isChannelProfileScreen)))
+                    val shouldShowBottomBar = !isPipMode && !isKickChatFocused && (isMainScreen || (shouldShowMiniPlayer && (isMainScreen || isChannelProfileScreen)))
                     
                     // Debug messages
                     println("DEBUG: Route='$currentRoute', isMainScreen=$isMainScreen, isPlayerScreen=$isPlayerScreen, isChannelProfile=$isChannelProfileScreen, isMiniPlayerVisible=$isMiniPlayerVisible, hasContent=${miniPlayerContent != null}, shouldShowMiniPlayer=$shouldShowMiniPlayer, shouldShowBottomBar=$shouldShowBottomBar, isPipMode=$isPipMode")
@@ -337,86 +340,19 @@ class MainActivity : ComponentActivity() {
                                         
                                         // Navigation Bar - only show on main screens
                                         if (isMainScreen) {
-                                            NavigationBar(
-                                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                                                tonalElevation = 0.dp
-                                            ) {
-                                        NavigationBarItem(
-                                            icon = { 
-                                                Icon(Icons.Default.Home, contentDescription = stringResource(R.string.nav_home)) 
-                                            },
-                                            label = { Text(stringResource(R.string.nav_home)) },
-                                            selected = selectedTab == "home",
-                                            colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                                            ),
-                                            onClick = {
-                                                Log.d("Navigation", "Home tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
-                                                if (selectedTab != "home") {
-                                                    selectedTab = "home"
-                                                    navController.navigate("home") {
-                                                        popUpTo("home") { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
+                                            KdsFloatingNavBar(
+                                                selectedTab = selectedTab,
+                                                onTabSelected = { destination ->
+                                                    if (selectedTab != destination) {
+                                                        selectedTab = destination
+                                                        navController.navigate(destination) {
+                                                            popUpTo("home") { saveState = true }
+                                                            launchSingleTop = true
+                                                            restoreState = true
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        )
-                                        NavigationBarItem(
-                                            icon = { 
-                                                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.nav_search)) 
-                                            },
-                                            label = { Text(stringResource(R.string.nav_search)) },
-                                            selected = selectedTab == "search",
-                                            colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                                            ),
-                                            onClick = {
-                                                Log.d("Navigation", "Search tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
-                                                if (selectedTab != "search") {
-                                                    selectedTab = "search"
-                                                    navController.navigate("search") {
-                                                        popUpTo("home") { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            }
-                                        )
-                                        NavigationBarItem(
-                                            icon = { 
-                                                Icon(Icons.Default.Favorite, contentDescription = stringResource(R.string.nav_following)) 
-                                            },
-                                            label = { Text(stringResource(R.string.nav_following)) },
-                                            selected = selectedTab == "following",
-                                            colors = NavigationBarItemDefaults.colors(
-                                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
-                                            ),
-                                            onClick = {
-                                                Log.d("Navigation", "Following tab clicked, selectedTab: $selectedTab, currentRoute: $currentRoute")
-                                                if (selectedTab != "following") {
-                                                    selectedTab = "following"
-                                                    navController.navigate("following") {
-                                                        popUpTo("home") { saveState = true }
-                                                        launchSingleTop = true
-                                                        restoreState = true
-                                                    }
-                                                }
-                                            }
-                                        )
-                                    }
+                                            )
                                         }
                                         }
                                     }
@@ -432,18 +368,18 @@ class MainActivity : ComponentActivity() {
                             popExitTransition = { fadeOut(tween(120)) + slideOutHorizontally(tween(120)) { it / 18 } }
                         ) {
                             composable("home") {
-                                HomeScreen(
+                                KickOfficialHomeScreen(
                                     onStreamClick = { stream: LiveStream ->
                                         sharedDataViewModel.setSelectedStream(stream)
                                         navController.navigate("player")
                                     },
-                                    onSettingsClick = {
-                                        navController.navigate("settings")
-                                    },
+                                    onChatFocusChanged = { focused -> isKickChatFocused = focused },
+                                    bottomOverlayHeight = if (shouldShowBottomBar) {
+                                        if (shouldShowMiniPlayer) 156.dp else 84.dp
+                                    } else 0.dp,
                                     onChannelClick = { username: String ->
                                         navController.navigate("channel_profile/$username")
                                     },
-                                    sharedDataViewModel = sharedDataViewModel,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }

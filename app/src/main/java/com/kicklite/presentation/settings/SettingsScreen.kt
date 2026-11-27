@@ -1,5 +1,6 @@
 package com.kicklite.presentation.settings
 
+import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -35,6 +36,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kicklite.R
+import com.kicklite.presentation.KickWebActivity
 import com.kicklite.designsystem.components.KdsSectionHeader
 import com.kicklite.designsystem.components.KdsSegmentedControl
 import com.kicklite.designsystem.components.KdsSurfaceCard
@@ -138,6 +140,27 @@ fun SettingsScreen(
                                 }) { Text("Clear") }
                             }
                         }
+                    }
+                }
+            }
+
+            item {
+                KdsSectionHeader(title = "KICK on the web")
+                KdsSurfaceCard(Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text("Full official KICK experience", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "Open KICK inside the app for website features that are not available through the public API. KICK sign-in and its own age restrictions remain handled by KICK.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Button(
+                            onClick = { context.startActivity(Intent(context, KickWebActivity::class.java)) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Open official KICK website") }
                     }
                 }
             }

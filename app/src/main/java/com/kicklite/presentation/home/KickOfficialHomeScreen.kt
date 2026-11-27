@@ -1,7 +1,6 @@
 package com.kicklite.presentation.home
 
 import android.graphics.Bitmap
-import android.net.Uri
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
@@ -25,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +51,9 @@ fun KickOfficialHomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val latestStreams by rememberUpdatedState(state.streams)
+    val latestStreamClick by rememberUpdatedState(onStreamClick)
+    val latestChannelClick by rememberUpdatedState(onChannelClick)
     var progress by remember { mutableIntStateOf(0) }
     var pageLoaded by remember { mutableStateOf(false) }
     var webView by remember { mutableStateOf<WebView?>(null) }
@@ -116,7 +120,7 @@ fun KickOfficialHomeScreen(
                             if (uri.scheme != "https" || (host != "kick.com" && !host.endsWith(".kick.com"))) {
                                 return true
                             }
-                            if (request.isForMainFrame) {
+                            if (request?.isForMainFrame == true) {
                                 val slug = uri.pathSegments.firstOrNull()?.takeIf {
                                     it.isNotBlank() && it !in setOf(
                                         "categories", "category", "videos", "clips", "search",
@@ -125,13 +129,15 @@ fun KickOfficialHomeScreen(
                                     )
                                 }
                                 if (slug != null) {
-                                    val matchingLive = state.streams.firstOrNull {
+                                    val matchingLive = latestStreams.firstOrNull {
                                         it.channel.slug.equals(slug, ignoreCase = true)
                                     }
                                     if (matchingLive != null) {
-                                        onStreamClick(matchingLive)
+                                        latestStreamClick(matchingLive)
                                         return true
                                     }
+                                    latestChannelClick(slug)
+                                    return true
                                 }
                             }
                             return false

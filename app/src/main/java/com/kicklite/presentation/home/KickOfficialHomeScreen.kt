@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.kicklite.domain.model.LiveStream
@@ -55,6 +56,7 @@ fun KickOfficialHomeScreen(
     onStreamClick: (LiveStream) -> Unit,
     onChannelClick: (String) -> Unit,
     onChatFocusChanged: (Boolean) -> Unit = {},
+    bottomOverlayHeight: Dp = 84.dp,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -82,7 +84,7 @@ fun KickOfficialHomeScreen(
 
     Box(modifier.fillMaxSize().background(KickWebBackground)) {
         AndroidView(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(bottom = bottomOverlayHeight),
             factory = { context ->
                 WebView(context).apply {
                     webView = this

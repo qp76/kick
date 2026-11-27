@@ -51,7 +51,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.kicklite.presentation.home.HomeScreen
+import com.kicklite.presentation.home.KickOfficialHomeScreen
 import com.kicklite.designsystem.components.KdsFloatingNavBar
 import com.kicklite.presentation.player.PlayerScreenWithStream
 import com.kicklite.presentation.player.PipModeManager
@@ -366,7 +366,7 @@ class MainActivity : ComponentActivity() {
                             popExitTransition = { fadeOut(tween(120)) + slideOutHorizontally(tween(120)) { it / 18 } }
                         ) {
                             composable("home") {
-                                HomeScreen(
+                                KickOfficialHomeScreen(
                                     onStreamClick = { stream: LiveStream ->
                                         sharedDataViewModel.setSelectedStream(stream)
                                         navController.navigate("player")
@@ -377,7 +377,6 @@ class MainActivity : ComponentActivity() {
                                     onChannelClick = { username: String ->
                                         navController.navigate("channel_profile/$username")
                                     },
-                                    sharedDataViewModel = sharedDataViewModel,
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
